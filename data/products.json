@@ -1,0 +1,74 @@
+[
+  {
+    "id": "rep-001",
+    "category": "Repuestos",
+    "name": "Pantalla para smartphone (varios modelos)",
+    "description": "Pantallas originales y compatibles. Consulta disponibilidad para tu modelo.",
+    "price": "Cotizar",
+    "icon": "chip"
+  },
+  {
+    "id": "rep-002",
+    "category": "Repuestos",
+    "name": "Batería para laptop",
+    "description": "Baterías compatibles para las marcas más comunes.",
+    "price": "Cotizar",
+    "icon": "chip"
+  },
+  {
+    "id": "rep-003",
+    "category": "Repuestos",
+    "name": "Accesorios (cargadores, cables, fundas)",
+    "description": "Accesorios para PC, celulares y tablets.",
+    "price": "Cotizar",
+    "icon": "chip"
+  },
+  {
+    "id": "srv-001",
+    "category": "Reparación",
+    "name": "Diagnóstico y reparación de PC",
+    "description": "Formateo, mantenimiento, cambio de piezas y solución de fallas.",
+    "price": "Cotizar",
+    "icon": "wrench"
+  },
+  {
+    "id": "srv-002",
+    "category": "Reparación",
+    "name": "Reparación de celulares y tablets",
+    "description": "Cambio de pantalla, batería, puerto de carga y más.",
+    "price": "Cotizar",
+    "icon": "wrench"
+  },
+  {
+    "id": "srv-003",
+    "category": "Reparación",
+    "name": "Asesoría tecnológica personalizada",
+    "description": "Recomendaciones para comprar, mantener o mejorar tus equipos.",
+    "price": "Cotizar",
+    "icon": "wrench"
+  },
+  {
+    "id": "cus-001",
+    "category": "Personalizados",
+    "name": "Estampado de polos",
+    "description": "Diseños personalizados para uso personal o empresas.",
+    "price": "Cotizar",
+    "icon": "gift"
+  },
+  {
+    "id": "cus-002",
+    "category": "Personalizados",
+    "name": "Tazas personalizadas",
+    "description": "Ideal para regalos y merchandising.",
+    "price": "Cotizar",
+    "icon": "gift"
+  },
+  {
+    "id": "cus-003",
+    "category": "Personalizados",
+    "name": "Cajas decorativas",
+    "description": "Cajas a medida para regalos y presentaciones especiales.",
+    "price": "Cotizar",
+    "icon": "gift"
+  }
+]
