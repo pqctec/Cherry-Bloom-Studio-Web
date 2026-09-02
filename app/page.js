@@ -13,7 +13,7 @@ const SERVICE_GROUPS = [
     description:
       'Venta de repuestos y accesorios originales para PC, celulares y tablets, reparación técnica especializada y asesoría personalizada respaldada por más de 15 años de experiencia en TI.',
     items: ['Repuestos y accesorios', 'Reparación de equipos', 'Asesoría tecnológica'],
-    logo: '/Cherry bloom studio tech.jpg',
+    logo: '/tech-logo.jpg',
   },
   {
     id: 'personalizados',
@@ -22,13 +22,14 @@ const SERVICE_GROUPS = [
     description:
       'Estampado de polos, tazas y cajas decorativas hechas a pedido, ideales para regalos, eventos o merchandising de tu empresa.',
     items: ['Estampado de polos', 'Tazas personalizadas', 'Cajas decorativas'],
-    logo: '/Cherry bloom studio.JPG',
+    logo: '/custom-logo.jpg',
   },
 ]
 
 export default function HomePage({ products = [] }) {
   const { activeBrand, setThemeBrand } = useTheme()
-  const featured = products.slice(0, 3)
+  const safeProducts = Array.isArray(products) ? products : []
+  const featured = safeProducts.slice(0, 3)
 
   const themeStyles = {
     default: {
@@ -103,13 +104,13 @@ export default function HomePage({ products = [] }) {
                 <img
                   src={
                     activeBrand === 'personalizados'
-                      ? '/Cherry bloom studio.JPG'
-                      : '/Cherry bloom studio tech.jpg'
+                      ? '/custom-logo.jpg'
+                      : '/tech-logo.jpg'
                   }
                   alt="Cherry Bloom Logo"
                   className={`h-full w-full object-cover rounded-full transition-transform duration-500 hover:scale-135 ${
                     activeBrand === 'personalizados'
-                      ? 'scale-125 translate-y-1' /* Ajuste específico para bajar ligeramente el logo rosa y centrarlo */
+                      ? 'scale-125 translate-y-1'
                       : 'scale-125'
                   }`}
                 />

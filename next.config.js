@@ -8,8 +8,8 @@ const nextConfig = {
   },
   // Reemplaza 'Cherry-Bloom-Studio-Web' con el nombre exacto de tu repositorio en GitHub si fuera necesario, 
   // esto asegura que las rutas de tus archivos e imágenes carguen bien en GitHub Pages:
-  basePath: '/Cherry-Bloom-Studio-Web',
-  assetPrefix: '/Cherry-Bloom-Studio-Web/',
+  // basePath: '/Cherry-Bloom-Studio-Web',
+  // assetPrefix: '/Cherry-Bloom-Studio-Web/',
 }
 
 module.exports = nextConfig
