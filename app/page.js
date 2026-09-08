@@ -35,18 +35,14 @@ export default function HomePage({ products = [] }) {
   const safeProducts = Array.isArray(products) ? products : []
   const featured = safeProducts.slice(0, 3)
 
-  // Seleccionamos la configuración de estilo según la línea activa (Tech o Personalizados)
   const currentGroup = SERVICE_GROUPS.find((g) => g.id === activeBrand) || SERVICE_GROUPS[0]
 
   return (
     <div className="bg-white text-zinc-950 min-h-screen selection:bg-zinc-900 selection:text-white transition-colors duration-500">
       
-      {/* Barra de selección de línea (Botones originales intactos) */}
+      {/* Barra de selección de línea */}
       <nav className="sticky top-16 z-30 w-full bg-white/90 backdrop-blur-md border-b border-zinc-200 py-3 px-6 transition-all">
         <div className="max-w-4xl mx-auto flex flex-wrap items-center justify-center gap-3">
-          <span className="text-xs font-medium text-zinc-400 uppercase tracking-widest mr-2">
-            Línea activa:
-          </span>
           {SERVICE_GROUPS.map((group) => {
             const isSelected = activeBrand === group.id
             return (
@@ -67,7 +63,7 @@ export default function HomePage({ products = [] }) {
         </div>
       </nav>
 
-      {/* Hero Principal optimizado */}
+      {/* Hero Principal con títulos dinámicos */}
       <section className={`relative overflow-hidden pt-12 pb-20 px-6 text-center transition-colors duration-500 ${currentGroup.accentColor}`}>
         <div className="max-w-4xl mx-auto">
           
@@ -75,9 +71,13 @@ export default function HomePage({ products = [] }) {
             Cherry Bloom Studio — Lima ({currentGroup.title})
           </span>
           
-          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight text-zinc-950 leading-[1.08] mb-6">
-            Tecnología que repara. <br />
-            <span className="text-zinc-500 font-normal">Detalles que enamoran.</span>
+          <h1 className="text-4xl sm:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.08] mb-6">
+            <span className={`transition-colors duration-500 block sm:inline ${activeBrand === 'tech' ? 'text-zinc-950' : 'text-zinc-300'}`}>
+              Tecnología que repara.
+            </span>{' '}
+            <span className={`transition-colors duration-500 block sm:inline ${activeBrand === 'personalizados' ? 'text-zinc-950' : 'text-zinc-300'}`}>
+              Detalles que enamoran.
+            </span>
           </h1>
 
           <p className="text-lg sm:text-xl text-zinc-600 max-w-2xl mx-auto font-normal leading-relaxed mb-10">
@@ -100,7 +100,7 @@ export default function HomePage({ products = [] }) {
         </div>
       </section>
 
-      {/* Grid de Secciones / Negocios */}
+      {/* Grid de Secciones / Tarjetas Inferiores */}
       <section className="max-w-6xl mx-auto px-6 py-20 border-t border-zinc-200 bg-white">
         <div className="text-center max-w-2xl mx-auto mb-16">
           <h2 className="text-3xl sm:text-4xl font-semibold tracking-tight text-zinc-950">
@@ -155,10 +155,20 @@ export default function HomePage({ products = [] }) {
                   </ul>
                 </div>
 
-                <div className="pt-4 border-t border-zinc-200 flex items-center justify-between text-xs font-medium text-zinc-500 group-hover:text-zinc-950 transition-colors">
-                  <span>{isSelected ? '● Línea activa actualmente' : 'Cambiar a esta línea'}</span>
-                  <span>→</span>
-                </div>
+                {/* Botón inferior condicional: Solo aparece si el cartel está seleccionado */}
+                {isSelected && (
+                  <div className="pt-4 border-t border-zinc-200 animate-fadeIn">
+                    <Link
+                      href="/catalogo"
+                      className="inline-flex items-center justify-between w-full text-xs font-medium text-zinc-700 group-hover:text-zinc-950 transition-colors"
+                    >
+                      <span>Explorar catálogo de {group.title.toLowerCase()}</span>
+                      <span className="bg-zinc-900 text-white px-3 py-1.5 rounded-full text-xs font-medium group-hover:bg-zinc-800 transition-colors">
+                        Ver catálogo →
+                      </span>
+                    </Link>
+                  </div>
+                )}
               </div>
             )
           })}
