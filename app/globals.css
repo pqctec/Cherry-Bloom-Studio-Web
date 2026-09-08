@@ -7,26 +7,26 @@ html {
 }
 
 body {
-  background-color: #050b18;
-  color: #eaf2fb;
+  background-color: #ffffff;
+  color: #18181b; /* zinc-900 */
 }
 
 .text-glow {
-  text-shadow: 0 0 18px rgba(111, 195, 255, 0.45);
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.1);
 }
 
 .dot-grid {
-  background-image: radial-gradient(rgba(127, 217, 201, 0.12) 1.2px, transparent 1.2px);
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1.2px);
   background-size: 28px 28px;
 }
 
 .card-surface {
-  background: linear-gradient(160deg, rgba(10, 42, 92, 0.55), rgba(5, 11, 24, 0.85));
-  border: 1px solid rgba(111, 195, 255, 0.18);
+  background: linear-gradient(160deg, rgba(244, 244, 245, 0.6), rgba(255, 255, 255, 0.9));
+  border: 1px solid rgba(228, 228, 231, 0.8);
 }
 
 .focus-ring:focus-visible {
-  outline: 2px solid #6fc3ff;
+  outline: 2px solid #18181b;
   outline-offset: 3px;
 }
 

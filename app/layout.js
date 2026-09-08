@@ -12,7 +12,7 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="es">
-      <body className="font-body bg-ink-950 text-slate-100 antialiased">
+      <body className="font-body bg-white text-zinc-900 antialiased">
         <ThemeProvider>
           <Header />
           <main>{children}</main>

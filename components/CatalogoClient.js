@@ -8,16 +8,13 @@ export default function CatalogoClient({ products }) {
   const { activeBrand } = useTheme()
   const isCustomizedTheme = activeBrand === 'personalizados'
 
-  // Definir categorías según el tema activo
   const CATEGORIES = isCustomizedTheme
-    ? ['Todos', 'Personalizados']
+    ? ['Todos', 'Belleza', 'Estampados', 'Papeleria']
     : ['Todos', 'Repuestos', 'Reparación', 'Asesorias']
 
   const [active, setActive] = useState('Todos')
   const [selectedParentId, setSelectedParentId] = useState(null)
 
-  // [CORRECCIÓN]: Se asegura limpiar por completo el padre seleccionado y la pestaña activa 
-  // cuando cambia el tema global, evitando que se quede en un estado huérfano o vacío.
   useEffect(() => {
     setActive('Todos')
     setSelectedParentId(null)
@@ -33,7 +30,6 @@ export default function CatalogoClient({ products }) {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  // 1. Filtrado estricto por Tema
   const themeFilteredProducts = useMemo(() => {
     if (!Array.isArray(products)) return []
     return products.filter((p) => {
@@ -49,7 +45,6 @@ export default function CatalogoClient({ products }) {
     })
   }, [products, isCustomizedTheme])
 
-  // 2. Filtrado por pestañas superiores
   const categoryFiltered = useMemo(() => {
     if (active === 'Todos') return themeFilteredProducts
     return themeFilteredProducts.filter((p) => {
@@ -58,14 +53,15 @@ export default function CatalogoClient({ products }) {
     })
   }, [active, themeFilteredProducts])
 
-  // 3. Filtrar solo los de Nivel "1"
-  // [CORRECCIÓN]: Se agregó un .trim() por seguridad ante espacios vacíos en los campos de nivel de la BD.
   const nivel1Products = useMemo(() => {
-    return categoryFiltered.filter((p) => String(p.nivel || '').trim() === '1')
+    return categoryFiltered
+      .filter((p) => String(p.nivel || '').trim() === '1')
+      .sort((a, b) => {
+        // Ordena alfabética o numéricamente por el id (cus-001, cus-002...)
+        return String(a.id).localeCompare(String(b.id, undefined, { numeric: true }))
+      })
   }, [categoryFiltered])
 
-  // 4. Filtrar los hijos donde nivel sea "2" y idchild coincida con el id del padre seleccionado
-  // [CORRECCIÓN]: Validación estricta de cadenas para evitar desajustes numéricos en IDs.
   const nivel2Products = useMemo(() => {
     if (selectedParentId === null) return []
     return themeFilteredProducts.filter(
@@ -75,104 +71,144 @@ export default function CatalogoClient({ products }) {
 
   const currentParent = themeFilteredProducts.find((p) => String(p.id) === String(selectedParentId))
 
-  // Estilos dinámicos según el tema activo
-  const accentColor = isCustomizedTheme ? 'text-pink-400' : 'text-circuit-bright'
-
-  const activeTabStyle = isCustomizedTheme
-    ? 'border-pink-500 bg-pink-500/15 text-pink-300'
-    : 'border-circuit-bright bg-circuit-bright/15 text-circuit-bright'
-
-  const inactiveTabStyle = isCustomizedTheme
-    ? 'border-pink-500/20 text-slate-400 hover:border-pink-400/40 hover:text-slate-200'
-    : 'border-circuit/20 text-slate-400 hover:border-circuit-bright/40 hover:text-slate-200'
-
-  const backButtonStyle = isCustomizedTheme
-    ? 'border-pink-500/25 text-pink-400 hover:bg-pink-500/10'
-    : 'border-circuit/25 text-circuit-bright hover:bg-circuit/10'
-
   return (
-    <div className="w-full">
-      {/* Cabecera Única */}
-      <div className="mb-10">
-        <p className={`font-mono text-sm tracking-[0.2em] ${accentColor} transition-colors duration-300`}>
-          // CATÁLOGO
-        </p>
-        <h1 className="mt-3 font-display text-3xl font-extrabold text-slate-100 sm:text-4xl">
-          {isCustomizedTheme ? 'Personalizados' : 'Repuestos, reparaciones y asesorías'}
-        </h1>
-        <p className="mt-3 max-w-2xl text-sm text-slate-400">
-          Escríbenos por WhatsApp para consultar disponibilidad, precios y tiempos de entrega.
-        </p>
-      </div>
-
-      {selectedParentId === null ? (
-        <div>
-          <div className="flex flex-wrap gap-2">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => {
-                  setActive(cat)
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                }}
-                className={`focus-ring rounded-full border px-4 py-2 text-sm font-medium transition ${
-                  active === cat ? activeTabStyle : inactiveTabStyle
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+    <div className="w-full bg-white text-zinc-950 min-h-screen py-12 px-6 transition-colors duration-500">
+      <div className="max-w-6xl mx-auto">
+        
+        {/* Cabecera Estilo Apple */}
+        <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between border-b border-zinc-200 pb-8">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400 mb-2 block">
+              Catálogo Oficial
+            </span>
+            <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight text-zinc-950">
+              {isCustomizedTheme ? 'Personalizados' : 'Tecnología'}
+            </h1>
           </div>
+          {/* <div className="mt-4 sm:mt-0 text-right hidden sm:block">
+            <span className="text-xs font-medium text-zinc-500 block hover:text-zinc-950 cursor-pointer transition-colors">
+              Connect with a Specialist ↗
+            </span>
+            <span className="text-xs font-medium text-zinc-500 block mt-1 hover:text-zinc-950 cursor-pointer transition-colors">
+              Find a Store ↗
+            </span>
+          </div> */}
+        </div>
 
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {nivel1Products.length > 0 ? (
-              nivel1Products.map((product) => (
-                <div 
-                  key={product.id} 
-                  onClick={() => handleSelectParent(product.id)}
-                  className="cursor-pointer"
+        {selectedParentId === null ? (
+          <div>
+            {/* Pestañas de categoría estilo Apple Pills */}
+            <div className="flex flex-wrap gap-2 mb-12">
+              {CATEGORIES.map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => {
+                    setActive(cat)
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                  }}
+                  className={`rounded-full px-5 py-2 text-xs font-medium transition-all duration-300 ${
+                    active === cat
+                      ? 'bg-zinc-950 text-white shadow-sm font-semibold'
+                      : 'bg-zinc-100 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200 border border-zinc-200'
+                  }`}
                 >
-                  <ProductCard product={product} />
-                </div>
-              ))
-            ) : (
-              <p className="text-slate-400 text-sm col-span-full">
-                No hay productos disponibles para esta categoría.
-              </p>
-            )}
-          </div>
-        </div>
-      ) : (
-        <div>
-          <button
-            onClick={handleBack}
-            className={`mb-8 flex items-center gap-2 rounded-xl border bg-ink-950 px-4 py-2 font-mono text-xs uppercase tracking-widest transition ${backButtonStyle}`}
-          >
-            ← Volver a categorías
-          </button>
-
-          {currentParent && (
-            <div className="mb-6">
-              <h2 className="font-display text-2xl font-bold text-slate-100">
-                {currentParent.name}
-              </h2>
-              <p className="text-sm text-slate-400 mt-1">Elementos y opciones de esta categoría</p>
+                  {cat}
+                </button>
+              ))}
             </div>
-          )}
 
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {nivel2Products.length > 0 ? (
-              nivel2Products.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))
-            ) : (
-              <p className="text-slate-400 text-sm col-span-full">
-                No hay elementos registrados en esta subcategoría.
+            {/* BARRA DE ICONOS ESTILO APPLE ACCESSORIES (NIVEL 1) */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 mb-16">
+              {nivel1Products.length > 0 ? (
+                nivel1Products.map((product) => {
+                  const productImage = product.image_url || product.image
+                  return (
+                    <div 
+                      key={product.id} 
+                      onClick={() => handleSelectParent(product.id)}
+                      className="cursor-pointer group flex flex-col items-center text-center p-4 rounded-2xl transition-all duration-300 hover:bg-zinc-50"
+                    >
+                      {/* Contenedor circular/redondeado del icono al estilo Apple */}
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-zinc-100 border border-zinc-200/80 flex items-center justify-center p-4 mb-4 shadow-sm group-hover:scale-105 group-hover:border-zinc-300 group-hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                        {productImage ? (
+                          <img 
+                            src={productImage} 
+                            alt={product.name} 
+                            className="w-full h-full object-contain filter drop-shadow-sm" 
+                          />
+                        ) : (
+                          <span className="text-2xl text-zinc-300">✦</span>
+                        )}
+                        {product.badge && (
+                          <span className="absolute top-2 right-2 bg-zinc-900 text-white text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full">
+                            {product.badge}
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Nombre de la categoría/producto debajo del icono */}
+                      <span className="text-xs sm:text-sm font-semibold tracking-tight text-zinc-900 group-hover:text-blue-600 transition-colors">
+                        {product.name}
+                      </span>
+                      {product.category && (
+                        <span className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-wider">
+                          {product.category}
+                        </span>
+                      )}
+                    </div>
+                  )
+                })
+              ) : (
+                <div className="col-span-full py-16 text-center text-zinc-400 text-sm">
+                  No hay elementos disponibles para esta categoría.
+                </div>
+              )}
+            </div>
+
+            {/* Sección inferior opcional o destacados */}
+            <div className="border-t border-zinc-200 pt-12">
+              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 mb-4">
+                Explora el catálogo completo
+              </h2>
+              <p className="text-sm text-zinc-500 max-w-xl">
+                Selecciona cualquiera de las opciones superiores para ver los repuestos, herramientas y servicios detallados disponibles para ti.
               </p>
-            )}
+            </div>
           </div>
-        </div>
-      )}
+        ) : (
+          <div>
+            {/* Botón Volver */}
+            <button
+              onClick={handleBack}
+              className="mb-8 inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-100 px-4 py-2 text-xs font-medium text-zinc-700 hover:bg-zinc-200 hover:text-zinc-950 transition-all shadow-sm"
+            >
+              ← Volver a categorías
+            </button>
+
+            {currentParent && (
+              <div className="mb-8">
+                <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950">
+                  {currentParent.name}
+                </h2>
+                <p className="text-sm text-zinc-500 mt-1">{currentParent.description || "Elementos y opciones disponibles de esta categoría"}</p>
+              </div>
+            )}
+
+            {/* NIVEL 2 (Tarjetas detalladas de productos) */}
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {nivel2Products.length > 0 ? (
+                nivel2Products.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              ) : (
+                <div className="col-span-full py-16 text-center text-zinc-400 text-sm">
+                  No hay elementos registrados en esta subcategoría.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

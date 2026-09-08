@@ -7,10 +7,8 @@ export default async function CatalogoPage() {
   const products = await getProducts()
 
   return (
-    <div className="min-h-screen bg-ink-950">
-      <section className="mx-auto max-w-6xl px-6 py-16">
-        <CatalogoClient products={products} />
-      </section>
+    <div className="min-h-screen bg-white text-zinc-950">
+      <CatalogoClient products={products} />
     </div>
   )
 }
