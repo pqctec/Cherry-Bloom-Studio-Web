@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Cherry Bloom Gestión</string>
+    <string name="title_activity_main">Cherry Bloom Gestión</string>
+    <string name="package_name">com.cherrybloomstudio.gestion</string>
+    <string name="custom_url_scheme">com.cherrybloomstudio.gestion</string>
+</resources>

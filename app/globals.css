@@ -1,0 +1,39 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: #ffffff;
+  color: #18181b; /* zinc-900 */
+}
+
+.text-glow {
+  text-shadow: 0 0 18px rgba(0, 0, 0, 0.1);
+}
+
+.dot-grid {
+  background-image: radial-gradient(rgba(0, 0, 0, 0.08) 1.2px, transparent 1.2px);
+  background-size: 28px 28px;
+}
+
+.card-surface {
+  background: linear-gradient(160deg, rgba(244, 244, 245, 0.6), rgba(255, 255, 255, 0.9));
+  border: 1px solid rgba(228, 228, 231, 0.8);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid #18181b;
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
