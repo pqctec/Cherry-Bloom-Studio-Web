@@ -97,10 +97,23 @@ export default function SolicitudesPanel({ requests, isAdmin }) {
                     {r.customer_email && <p className="text-xs text-zinc-400">{r.customer_email}</p>}
                   </td>
                   <td className="px-5 py-4 text-zinc-600">
-                    <ul className="space-y-0.5">
+                    <ul className="space-y-1">
                       {items.map((it, idx) => (
                         <li key={idx} className="text-xs">
-                          {it.quantity}× {it.description}
+                          <span>
+                            {it.quantity}× {it.description}
+                            {it.color && <span className="text-zinc-400"> · Color: {it.color}</span>}
+                          </span>
+                          {it.design_url && (
+                            <a
+                              href={it.design_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="ml-1.5 text-emerald-600 hover:text-emerald-700 font-medium"
+                            >
+                              Ver diseño
+                            </a>
+                          )}
                         </li>
                       ))}
                     </ul>

@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from 'react'
 import { useTheme } from '@/lib/ThemeContext'
 import { submitQuoteRequest } from './actions'
 import { generateQuotePdf } from '@/lib/pdf/generateQuotePdf'
+import { parsePriceAmount } from '@/lib/price'
 
 // Mismos números que Footer/Contacto/ProductDetailPage para cada línea de
 // negocio, así el cliente siempre termina escribiéndole a la persona correcta.
@@ -21,6 +22,23 @@ const PHONE_BY_BRAND = {
 // nada (fallback alfabético/numérico).
 const FABRIC_ORDER = { j30: 0, j20: 1, pima50: 2 }
 const SIZE_ORDER = { '6-8': 0, '10-12': 1, '14-16': 2, sml: 3, xl: 4 }
+
+// Colores de tela que se pueden pedir en Estampados. No es un inventario por
+// color (no cambia precio ni stock) — es una preferencia que viaja con la
+// cotización para que el negocio sepa qué tela conseguir antes de llamar al
+// cliente. Si más adelante se maneja stock real por color, esto se puede
+// reemplazar por variantes de producto de verdad.
+const COLOR_OPTIONS = ['Blanco', 'Negro', 'Rojo', 'Azul', 'Verde', 'Amarillo', 'Gris', 'Otro (indícalo en notas)']
+
+// Señales de confianza para la línea Tecnología, cerca de los botones de
+// cotizar — mismo tipo de mensajes que usan las cadenas de reparación
+// (garantía, diagnóstico gratis, tiempo de entrega) para bajar la fricción
+// de pedir un repuesto o reparación "a ciegas".
+const TECH_TRUST_BADGES = [
+  '🛡️ Garantía en repuestos',
+  '🔍 Diagnóstico gratis antes de confirmar',
+  '⚡ La mayoría de reparaciones, el mismo día',
+]
 
 function variantSortKey(product) {
   const parts = String(product.id || '').split('-')
@@ -43,49 +61,113 @@ function sortVariants(products) {
   })
 }
 
-function ProductRow({ product, onAdd }) {
+// Un producto es de Estampados si su categoría dice "Estampados" (polos,
+// gorros, tazas, otros) — ahí es donde tiene sentido pedir diseño/logo y
+// color de tela. Los demás rubros de Personalizados (Belleza, Papelería) no
+// lo necesitan.
+function isEstampado(product) {
+  return String(product?.category || '').toLowerCase().trim() === 'estampados'
+}
+
+function ProductRow({ product, onAdd, allowDesign, allowDeviceNote }) {
   const [qty, setQty] = useState(1)
   const [justAdded, setJustAdded] = useState(false)
+  const [color, setColor] = useState('')
+  const [deviceNote, setDeviceNote] = useState('')
+  const [designFile, setDesignFile] = useState(null)
 
   function handleAdd() {
-    onAdd(product, qty)
+    onAdd(product, qty, {
+      color,
+      deviceNote,
+      designFile,
+      designFileName: designFile?.name || '',
+    })
     setJustAdded(true)
     setTimeout(() => setJustAdded(false), 1200)
+    // Se limpia para que un siguiente "+Agregar" de esta misma fila no
+    // reutilice sin querer el archivo/color de la vez anterior.
+    setColor('')
+    setDeviceNote('')
+    setDesignFile(null)
   }
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-zinc-200 bg-white px-4 py-3.5">
-      <div className="flex items-center gap-3 min-w-0">
-        {product.image_url && (
-          <img
-            src={product.image_url}
-            alt=""
-            className="h-10 w-10 shrink-0 rounded-lg bg-zinc-50 object-contain border border-zinc-100"
+    <div className="rounded-2xl border border-zinc-200 bg-white px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3 min-w-0">
+          {product.image_url && (
+            <img
+              src={product.image_url}
+              alt=""
+              className="h-10 w-10 shrink-0 rounded-lg bg-zinc-50 object-contain border border-zinc-100"
+            />
+          )}
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-zinc-900 truncate">{product.name}</p>
+            <p className="text-xs text-zinc-400">{product.price}</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <input
+            type="number"
+            min="1"
+            value={qty}
+            onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+            className="w-14 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
           />
-        )}
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-zinc-900 truncate">{product.name}</p>
-          <p className="text-xs text-zinc-400">{product.price}</p>
+          <button
+            type="button"
+            onClick={handleAdd}
+            className={`rounded-full text-xs font-medium px-4 py-1.5 transition-colors active:scale-95 ${
+              justAdded ? 'bg-emerald-600 text-white' : 'bg-zinc-950 hover:bg-zinc-800 text-white'
+            }`}
+          >
+            {justAdded ? '✓ Agregado' : '+ Agregar'}
+          </button>
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0">
-        <input
-          type="number"
-          min="1"
-          value={qty}
-          onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
-          className="w-14 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1.5 text-xs text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          className={`rounded-full text-xs font-medium px-4 py-1.5 transition-colors active:scale-95 ${
-            justAdded ? 'bg-emerald-600 text-white' : 'bg-zinc-950 hover:bg-zinc-800 text-white'
-          }`}
-        >
-          {justAdded ? '✓ Agregado' : '+ Agregar'}
-        </button>
-      </div>
+
+      {(allowDesign || allowDeviceNote) && (
+        <div className="mt-3 pt-3 border-t border-zinc-100 flex flex-wrap gap-2.5">
+          {allowDesign && (
+            <>
+              <select
+                value={color}
+                onChange={(e) => setColor(e.target.value)}
+                className="rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+              >
+                <option value="">Color de tela (opcional)</option>
+                {COLOR_OPTIONS.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+
+              <label className="flex items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-500 cursor-pointer hover:bg-zinc-100">
+                📎 {designFile ? designFile.name : 'Subir logo/diseño (opcional)'}
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  className="hidden"
+                  onChange={(e) => setDesignFile(e.target.files?.[0] || null)}
+                />
+              </label>
+            </>
+          )}
+
+          {allowDeviceNote && (
+            <input
+              type="text"
+              value={deviceNote}
+              onChange={(e) => setDeviceNote(e.target.value)}
+              placeholder="Marca y modelo de tu equipo (opcional)"
+              className="flex-1 min-w-[12rem] rounded-lg border border-zinc-200 bg-zinc-50 px-2.5 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -113,34 +195,46 @@ function CartPanel({
       ) : (
         <>
           <div className="space-y-2 mb-4 max-h-[50vh] overflow-y-auto pr-1">
-            {cart.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-2 text-sm border-b border-zinc-100 pb-2"
-              >
-                <span className="text-zinc-700 min-w-0 truncate">{item.name}</span>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <input
-                    type="number"
-                    min="1"
-                    value={item.quantity}
-                    onChange={(e) => updateQty(item.id, Number(e.target.value) || 1)}
-                    className="w-12 rounded-lg border border-zinc-200 bg-zinc-50 px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
-                  />
-                  <span className="text-xs text-zinc-400 w-20 text-right">
-                    {item.price_amount ? `S/ ${(item.price_amount * item.quantity).toFixed(2)}` : 'A cotizar'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeItem(item.id)}
-                    className="text-zinc-400 hover:text-red-600 text-xs"
-                    title="Quitar"
-                  >
-                    ✕
-                  </button>
+            {cart.map((item) => {
+              const tags = [
+                item.color && `Color: ${item.color}`,
+                item.deviceNote && `Modelo: ${item.deviceNote}`,
+                item.designFileName && '📎 diseño adjunto',
+              ].filter(Boolean)
+              return (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between gap-2 text-sm border-b border-zinc-100 pb-2"
+                >
+                  <div className="min-w-0">
+                    <span className="text-zinc-700 truncate block">{item.name}</span>
+                    {tags.length > 0 && (
+                      <span className="text-[11px] text-zinc-400 truncate block">{tags.join(' · ')}</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <input
+                      type="number"
+                      min="1"
+                      value={item.quantity}
+                      onChange={(e) => updateQty(item.id, Number(e.target.value) || 1)}
+                      className="w-12 rounded-lg border border-zinc-200 bg-zinc-50 px-1.5 py-1 text-xs text-center focus:outline-none focus:ring-2 focus:ring-zinc-900"
+                    />
+                    <span className="text-xs text-zinc-400 w-20 text-right">
+                      {item.price_amount ? `S/ ${(item.price_amount * item.quantity).toFixed(2)}` : 'A cotizar'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => removeItem(item.id)}
+                      className="text-zinc-400 hover:text-red-600 text-xs"
+                      title="Quitar"
+                    >
+                      ✕
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
           <div className="flex items-center justify-between text-sm font-semibold text-zinc-900 mb-6">
@@ -246,6 +340,7 @@ export default function CotizarClient({ products }) {
     : ['Todos', 'Repuestos', 'Reparación', 'Asesorias']
 
   const [active, setActive] = useState('Todos')
+  const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState(null)
   const [cart, setCart] = useState([])
   const [showForm, setShowForm] = useState(false)
@@ -269,14 +364,6 @@ export default function CotizarClient({ products }) {
     return themeFiltered.filter((p) => p.category?.toLowerCase().trim() === active.toLowerCase().trim())
   }, [active, themeFiltered])
 
-  const nivel1 = useMemo(
-    () =>
-      categoryFiltered
-        .filter((p) => String(p.nivel || '').trim() === '1')
-        .sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true })),
-    [categoryFiltered]
-  )
-
   function childrenOf(id) {
     const kids = themeFiltered.filter(
       (p) => String(p.nivel || '').trim() === '2' && String(p.idchild || '').trim() === String(id)
@@ -284,11 +371,43 @@ export default function CotizarClient({ products }) {
     return sortVariants(kids)
   }
 
-  function addToCart(product, qty) {
+  // Buscador: filtra por nombre/descripción del producto principal, y
+  // también deja el producto visible si alguna de sus variantes calza (ej.
+  // buscar "pima" debe mostrar "Estampado de Polos", aunque el nombre del
+  // producto principal no diga "pima").
+  const nivel1 = useMemo(() => {
+    const base = categoryFiltered.filter((p) => String(p.nivel || '').trim() === '1')
+    const term = search.trim().toLowerCase()
+
+    const matches = term
+      ? base.filter((p) => {
+          const ownText = `${p.name || ''} ${p.description || ''}`.toLowerCase()
+          if (ownText.includes(term)) return true
+          return childrenOf(p.id).some((kid) => `${kid.name || ''}`.toLowerCase().includes(term))
+        })
+      : base
+
+    return [...matches].sort((a, b) => String(a.id).localeCompare(String(b.id), undefined, { numeric: true }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [categoryFiltered, search, themeFiltered])
+
+  function addToCart(product, qty, extra = {}) {
+    const price_amount = parsePriceAmount(product)
     setCart((prev) => {
       const existing = prev.find((i) => i.id === product.id)
       if (existing) {
-        return prev.map((i) => (i.id === product.id ? { ...i, quantity: i.quantity + qty } : i))
+        return prev.map((i) =>
+          i.id === product.id
+            ? {
+                ...i,
+                quantity: i.quantity + qty,
+                color: extra.color || i.color,
+                deviceNote: extra.deviceNote || i.deviceNote,
+                designFile: extra.designFile || i.designFile,
+                designFileName: extra.designFileName || i.designFileName,
+              }
+            : i
+        )
       }
       return [
         ...prev,
@@ -296,8 +415,12 @@ export default function CotizarClient({ products }) {
           id: product.id,
           name: product.name,
           price: product.price,
-          price_amount: product.price_amount ?? null,
+          price_amount,
           quantity: qty,
+          color: extra.color || '',
+          deviceNote: extra.deviceNote || '',
+          designFile: extra.designFile || null,
+          designFileName: extra.designFileName || '',
         },
       ]
     })
@@ -316,12 +439,58 @@ export default function CotizarClient({ products }) {
   const total = cart.reduce((sum, i) => sum + (i.price_amount ? i.price_amount * i.quantity : 0), 0)
   const hasUnpriced = cart.some((i) => !i.price_amount)
 
+  function buildWhatsAppSummary(confirmationData) {
+    const lines = [
+      `Hola, acabo de enviar la cotización N° ${String(confirmationData.quoteNumber ?? 0).padStart(6, '0')} desde la web.`,
+      '',
+      ...confirmationData.items.map((it) => {
+        const priceText = it.price_amount ? `S/ ${(it.price_amount * it.quantity).toFixed(2)}` : 'a cotizar'
+        return `${it.quantity}× ${it.name} — ${priceText}`
+      }),
+    ]
+    return lines.join('\n')
+  }
+
+  // Nombre a mostrar en el PDF y en el WhatsApp de confirmación: el mismo
+  // nombre del producto, más el color/modelo/diseño elegidos entre
+  // paréntesis, para que esos dos documentos digan lo mismo que quedó
+  // guardado en el panel de administración.
+  function displayNameFor(item) {
+    const extras = [
+      item.color && `Color: ${item.color}`,
+      item.deviceNote && `Modelo: ${item.deviceNote}`,
+      item.designFileName && 'diseño adjunto',
+    ].filter(Boolean)
+    return extras.length ? `${item.name} (${extras.join(', ')})` : item.name
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
-    const cartSnapshot = cart.map((i) => ({ id: i.id, name: i.name, price_amount: i.price_amount, quantity: i.quantity }))
-    formData.set('items', JSON.stringify(cartSnapshot.map((i) => ({ id: i.id, name: i.name, quantity: i.quantity }))))
+    const cartSnapshot = cart.map((i) => ({
+      id: i.id,
+      name: displayNameFor(i),
+      price_amount: i.price_amount,
+      quantity: i.quantity,
+    }))
+    formData.set(
+      'items',
+      JSON.stringify(
+        cart.map((i) => ({
+          id: i.id,
+          name: i.name,
+          quantity: i.quantity,
+          color: i.color || undefined,
+          device_note: i.deviceNote || undefined,
+        }))
+      )
+    )
+    // Los archivos de diseño van aparte (no caben en el JSON de "items"); el
+    // server action los relaciona con su item por el id en el nombre del campo.
+    cart.forEach((i) => {
+      if (i.designFile) formData.append(`design_${i.id}`, i.designFile)
+    })
 
     const submission = {
       name: String(formData.get('customer_name') || ''),
@@ -373,7 +542,8 @@ export default function CotizarClient({ products }) {
         </p>
         <p className="text-sm text-zinc-500 mb-8">
           Recibimos tu solicitud. Te vamos a contactar pronto al número que dejaste. Mientras tanto, puedes
-          descargar tu cotización en PDF o escribirnos directo por WhatsApp.
+          descargar tu cotización en PDF o escribirnos directo por WhatsApp (ya con el detalle de lo que
+          pediste, para que no tengas que volver a escribirlo).
         </p>
 
         {pdfError && <p className="text-sm text-red-600 mb-4">{pdfError}</p>}
@@ -386,9 +556,7 @@ export default function CotizarClient({ products }) {
             ↓ Descargar PDF
           </button>
           <a
-            href={`https://wa.me/${phone}?text=${encodeURIComponent(
-              `Hola, acabo de enviar la solicitud de cotización N° ${String(confirmation.quoteNumber ?? 0).padStart(6, '0')} desde la web.`
-            )}`}
+            href={`https://wa.me/${phone}?text=${encodeURIComponent(buildWhatsAppSummary(confirmation))}`}
             target="_blank"
             rel="noopener noreferrer"
             className="rounded-full bg-zinc-950 hover:bg-zinc-800 text-white text-sm font-medium px-6 py-3 transition-colors"
@@ -419,11 +587,34 @@ export default function CotizarClient({ products }) {
           Elige lo que te interesa, la cantidad, y déjanos tus datos. Te contactamos con el precio final
           y los detalles.
         </p>
+
+        {!isCustomizedTheme && (
+          <div className="flex flex-wrap gap-2 mt-5">
+            {TECH_TRUST_BADGES.map((b) => (
+              <span
+                key={b}
+                className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 border border-zinc-200 px-3 py-1.5 text-[11px] font-medium text-zinc-600"
+              >
+                {b}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-8 lg:items-start">
         {/* Columna izquierda: productos */}
         <div>
+          <div className="mb-4">
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar (ej. polo, pantalla, pima, gorro)..."
+              className="w-full rounded-full border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
+
           <div className="flex flex-wrap gap-2 mb-8">
             {CATEGORIES.map((cat) => (
               <button
@@ -444,6 +635,8 @@ export default function CotizarClient({ products }) {
             {nivel1.map((product) => {
               const kids = childrenOf(product.id)
               const isExpanded = expandedId === product.id
+              const allowDesign = isEstampado(product)
+              const allowDeviceNote = !isCustomizedTheme && kids.length === 0
               return (
                 <div key={product.id} className="rounded-3xl border border-zinc-200 bg-zinc-50/60 p-5 sm:p-6">
                   <div className="flex items-start justify-between gap-3">
@@ -477,9 +670,22 @@ export default function CotizarClient({ products }) {
                   {isExpanded && (
                     <div className="mt-4 space-y-2">
                       {kids.length > 0 ? (
-                        kids.map((kid) => <ProductRow key={kid.id} product={kid} onAdd={addToCart} />)
+                        kids.map((kid) => (
+                          <ProductRow
+                            key={kid.id}
+                            product={kid}
+                            onAdd={addToCart}
+                            allowDesign={allowDesign}
+                            allowDeviceNote={false}
+                          />
+                        ))
                       ) : (
-                        <ProductRow product={product} onAdd={addToCart} />
+                        <ProductRow
+                          product={product}
+                          onAdd={addToCart}
+                          allowDesign={allowDesign}
+                          allowDeviceNote={allowDeviceNote}
+                        />
                       )}
                     </div>
                   )}
@@ -488,7 +694,7 @@ export default function CotizarClient({ products }) {
             })}
             {nivel1.length === 0 && (
               <p className="col-span-full text-center text-sm text-zinc-400 py-16">
-                No hay productos en esta categoría.
+                {search.trim() ? 'No encontramos nada con eso. Prueba con otra palabra.' : 'No hay productos en esta categoría.'}
               </p>
             )}
           </div>

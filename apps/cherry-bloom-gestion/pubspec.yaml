@@ -1,0 +1,32 @@
+name: cherry_bloom_gestion_app
+description: App Android que envuelve el panel de administracion (ERP) de Cherry Bloom Studio.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  webview_flutter: ^4.7.0
+  # Webview para la version de escritorio Windows (webview_flutter no
+  # soporta Windows; en Android este paquete simplemente no hace nada).
+  webview_windows: ^0.4.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/branding/
+
+flutter_launcher_icons:
+  image_path: "assets/branding/logo.png"
+  android: true
+  windows:
+    generate: true
