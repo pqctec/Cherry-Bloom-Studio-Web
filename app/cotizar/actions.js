@@ -65,11 +65,21 @@ export async function submitQuoteRequest(formData) {
       // dentro de la descripción: es una nota libre, no necesita su propia
       // columna en el panel de admin.
       const description = deviceNote ? `${baseDescription} — Modelo/marca: ${deviceNote}` : baseDescription
+      // Precio unitario en el momento del pedido. Antes esto NO se guardaba
+      // (el JSON de items solo tenía product_id/description/quantity/color),
+      // así que el precio que el cliente vio en /cotizar se perdía apenas se
+      // enviaba la solicitud — el admin lo veía en la tabla, pero si el
+      // cliente quería volver a consultar su propia cotización más tarde, no
+      // había forma de mostrarle cuánto le iba a costar. Se guarda tal cual
+      // llega del carrito (ya calculado con lib/price.js en el cliente); si
+      // no es un número válido > 0 (ítem "a cotizar"), se guarda null.
+      const unitPrice = Number(it?.unit_price)
       return {
         product_id: it?.id ? String(it.id) : null,
         description,
         quantity: Math.max(1, Number(it?.quantity) || 1),
         color: it?.color ? String(it.color).trim() : null,
+        unit_price: Number.isFinite(unitPrice) && unitPrice > 0 ? unitPrice : null,
         design_url: null, // se completa abajo si el cliente adjuntó un archivo
       }
     })

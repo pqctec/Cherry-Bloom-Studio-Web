@@ -10,6 +10,7 @@ const NAV = [
   { href: '/catalogo', label: 'Catálogo' },
   { href: '/servicios', label: 'Servicios' },
   { href: '/cotizar', label: 'Cotizar' },
+  { href: '/mis-cotizaciones', label: 'Mis cotizaciones' },
   { href: '/contacto', label: 'Contacto' },
 ]
 
@@ -64,13 +65,13 @@ export default function Header() {
   return (
     <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/90 backdrop-blur-md transition-colors duration-300">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-3.5">
-        
+
         {/* Logo dinámico de la línea activa y Nombre */}
         <Link href="/" className="focus:outline-none flex items-center gap-3 group">
           <div className="h-9 w-9 rounded-full overflow-hidden border border-zinc-200 bg-white shadow-sm flex items-center justify-center p-0.5">
-            <img 
-              src={currentTheme.logo} 
-              alt="Cherry Bloom Studio Logo" 
+            <img
+              src={currentTheme.logo}
+              alt="Cherry Bloom Studio Logo"
               className="h-full w-full object-cover rounded-full"
             />
           </div>

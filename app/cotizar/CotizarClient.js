@@ -346,7 +346,7 @@ export default function CotizarClient({ products }) {
   const [showForm, setShowForm] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
-  const [confirmation, setConfirmation] = useState(null) // { name, phone, email, notes, items, quoteNumber }
+  const [confirmation, setConfirmation] = useState(null) // { name, phone, email, notes, items, quoteNumber, id }
   const [pdfError, setPdfError] = useState('')
 
   const themeFiltered = useMemo(() => {
@@ -448,6 +448,14 @@ export default function CotizarClient({ products }) {
         return `${it.quantity}× ${it.name} — ${priceText}`
       }),
     ]
+    // Se incluye el link a la cotización dentro del propio mensaje de
+    // WhatsApp: así, aunque el cliente nunca vuelva a la web, el link queda
+    // guardado en su propio chat de WhatsApp con el negocio — el archivo más
+    // simple posible de "no perder el historial", sin depender de que él
+    // guarde nada aparte.
+    if (confirmationData.id && typeof window !== 'undefined') {
+      lines.push('', `Ver el detalle y el estado de mi cotización: ${window.location.origin}/cotizacion/${confirmationData.id}`)
+    }
     return lines.join('\n')
   }
 
@@ -481,6 +489,10 @@ export default function CotizarClient({ products }) {
           id: i.id,
           name: i.name,
           quantity: i.quantity,
+          // Se manda el precio unitario ya calculado (parsePriceAmount) para
+          // que el server action lo guarde junto con el ítem — antes se
+          // perdía porque nunca viajaba en este JSON (ver app/cotizar/actions.js).
+          unit_price: i.price_amount || undefined,
           color: i.color || undefined,
           device_note: i.deviceNote || undefined,
         }))
@@ -503,7 +515,7 @@ export default function CotizarClient({ products }) {
     startTransition(async () => {
       try {
         const result = await submitQuoteRequest(formData)
-        setConfirmation({ ...submission, quoteNumber: result.quote_number })
+        setConfirmation({ ...submission, quoteNumber: result.quote_number, id: result.id })
         setCart([])
         setShowForm(false)
       } catch (err) {
@@ -542,8 +554,8 @@ export default function CotizarClient({ products }) {
         </p>
         <p className="text-sm text-zinc-500 mb-8">
           Recibimos tu solicitud. Te vamos a contactar pronto al número que dejaste. Mientras tanto, puedes
-          descargar tu cotización en PDF o escribirnos directo por WhatsApp (ya con el detalle de lo que
-          pediste, para que no tengas que volver a escribirlo).
+          descargar tu cotización en PDF, verla en línea cuando quieras, o escribirnos directo por WhatsApp (ya
+          con el detalle de lo que pediste, para que no tengas que volver a escribirlo).
         </p>
 
         {pdfError && <p className="text-sm text-red-600 mb-4">{pdfError}</p>}
@@ -564,6 +576,16 @@ export default function CotizarClient({ products }) {
             Escribir por WhatsApp
           </a>
         </div>
+
+        {confirmation.id && (
+          <p className="mt-6 text-sm">
+            <a href={`/cotizacion/${confirmation.id}`} className="font-medium text-zinc-700 underline hover:text-zinc-950">
+              Ver mi cotización en línea
+            </a>
+            <span className="text-zinc-400"> — guarda este enlace, puedes volver a abrirlo cuando quieras.</span>
+          </p>
+        )}
+
         <button
           onClick={() => setConfirmation(null)}
           className="mt-6 text-xs font-medium text-zinc-400 hover:text-zinc-700"
