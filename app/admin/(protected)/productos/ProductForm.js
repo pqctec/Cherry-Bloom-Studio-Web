@@ -30,6 +30,17 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
   const [nivel, setNivel] = useState(initial.nivel || '1')
   const [parentId, setParentId] = useState(initial.idchild || '')
 
+  // Cuando es un subproducto, el "Código único" ya no se escribe libre — se
+  // fija el código del padre + "-" como prefijo (ej. "cus-013-") y el
+  // usuario solo completa lo que sigue, para que no tenga que copiar el
+  // código del padre a mano. Se reinicia cada vez que cambia el padre
+  // elegido, porque un sufijo pensado para un producto ya no tiene sentido
+  // para otro.
+  const [idSuffix, setIdSuffix] = useState('')
+  useEffect(() => {
+    setIdSuffix('')
+  }, [parentId])
+
   // La categoría va ANTES que el nivel a propósito: así "Pertenece a" se
   // puede filtrar por esa categoría en vez de mostrar TODOS los productos
   // principales del catálogo mezclados. Antes, por ejemplo, había un
@@ -65,13 +76,6 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
   // haya que adivinar el formato. No se autocompleta solo — sigue siendo el
   // usuario quien escribe el código final — porque generarlo automático
   // podría chocar con uno que ya existe.
-  const idPlaceholder =
-    nivel === '2'
-      ? parentId
-        ? `ej. ${parentId}-variante-1`
-        : 'Primero elige a qué producto pertenece, arriba'
-      : 'ej. rep-004'
-
   // -----------------------------------------------------------------------
   // Fotos — ahora se puede cargar más de una. Cada foto es "existing" (ya
   // guardada, viene de initial.image_urls / initial.image_url) o "new" (recién
@@ -113,6 +117,13 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
+
+    // El código de un subproducto se arma con el prefijo fijo (código del
+    // padre + "-") más lo que el usuario escribió en el campo visible, que
+    // no lleva "name" porque solo se ve el sufijo, no el código completo.
+    if (mode === 'create' && nivel === '2' && parentId) {
+      formData.set('id', `${parentId}-${idSuffix.trim()}`)
+    }
 
     const keptExistingUrls = photos.filter((p) => p.kind === 'existing').map((p) => p.url)
     formData.set('existing_images', JSON.stringify(keptExistingUrls))
@@ -302,14 +313,34 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
           <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
             Código único del producto
           </label>
-          <input
-            name="id"
-            required
-            placeholder={idPlaceholder}
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
+          {nivel === '2' && parentId ? (
+            <div className="flex items-stretch rounded-xl border border-zinc-200 bg-zinc-50 focus-within:ring-2 focus-within:ring-zinc-900">
+              <span className="flex items-center pl-4 pr-1 text-sm text-zinc-500 select-none">
+                {parentId}-
+              </span>
+              <input
+                value={idSuffix}
+                onChange={(e) => setIdSuffix(e.target.value)}
+                required
+                placeholder="variante-1"
+                className="min-w-0 flex-1 rounded-r-xl bg-transparent py-2.5 pr-4 text-sm focus:outline-none"
+              />
+            </div>
+          ) : (
+            <input
+              name="id"
+              required
+              disabled={nivel === '2' && !parentId}
+              placeholder={
+                nivel === '2' ? 'Primero elige a qué producto pertenece, arriba' : 'ej. rep-004'
+              }
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900 disabled:opacity-50"
+            />
+          )}
           <p className="text-xs text-zinc-400 mt-1.5">
-            Un identificador corto y sin espacios. No se puede cambiar después.
+            {nivel === '2' && parentId
+              ? `El "${parentId}-" queda fijo porque es subproducto de ese producto — solo escribe lo que sigue (ej. "variante-1", "caja-01").`
+              : 'Un identificador corto y sin espacios. No se puede cambiar después.'}
           </p>
         </div>
       )}
