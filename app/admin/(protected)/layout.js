@@ -36,6 +36,7 @@ export default async function AdminLayout({ children }) {
         { href: '/admin/cotizaciones', label: 'Cotizaciones', icon: '≡' },
         { href: '/admin/clientes', label: 'Clientes', icon: '◎' },
         { href: '/admin/productos', label: 'Catálogo e inventario', icon: '▤' },
+        { href: '/admin/inventario', label: 'Hacer inventario', icon: '▦' },
       ],
     },
     ...(isAdmin

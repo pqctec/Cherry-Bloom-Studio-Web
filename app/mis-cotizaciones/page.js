@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { lookupQuote } from './actions'
 
@@ -73,6 +74,14 @@ export default function MisCotizacionesPage() {
           {isPending ? 'Buscando...' : 'Buscar mi cotización'}
         </button>
       </form>
+
+      <p className="text-xs text-zinc-400 text-center mt-8">
+        ¿Prefieres dejar tus datos completos (dirección, DNI, cumpleaños) desde ya?{' '}
+        <Link href="/registro" className="font-medium text-zinc-600 underline hover:text-zinc-950">
+          Regístrate aquí
+        </Link>
+        .
+      </p>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use server'
 
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { upsertCustomerByPhone } from '@/lib/customers'
 
 // Lista blanca de tipos de archivo aceptados para diseños/logos. Se valida
 // el content-type que declara el navegador (no es infalible — alguien podría
@@ -158,12 +159,25 @@ export async function submitQuoteRequest(formData) {
     // acá, porque ya se rechazó arriba.
   }
 
+  // "Registro" del cliente: cada cotización que se envía también crea o
+  // actualiza su perfil en la tabla customers (buscándolo por teléfono), sin
+  // pedirle contraseña ni cuenta — así, aunque nunca haya pasado por
+  // /registro, queda guardado para la próxima vez y el negocio ya tiene su
+  // ficha en el panel de Clientes. Es "best effort": si por algo falla, la
+  // cotización se sigue guardando igual (nunca debe bloquear el envío).
+  const customer_id = await upsertCustomerByPhone(admin, {
+    full_name: customer_name,
+    phone: customer_phone,
+    email: customer_email,
+  })
+
   const { data, error } = await admin
     .from('quote_requests')
     .insert({
       customer_name,
       customer_phone,
       customer_email: customer_email || null,
+      customer_id,
       items: cleanItems,
       notes: notes || null,
     })
