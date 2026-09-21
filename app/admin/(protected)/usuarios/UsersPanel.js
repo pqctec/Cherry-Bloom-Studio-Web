@@ -292,20 +292,20 @@ function UserRow({ user, currentUserId }) {
             <button
               onClick={() => setConfirmingRevoke(true)}
               disabled={isSelf}
-              title={isSelf ? 'No puedes revocarte el acceso a ti mismo' : ''}
+              title={isSelf ? 'No puedes eliminar tu propio usuario' : ''}
               className="text-xs font-medium text-red-600 hover:text-red-700 disabled:opacity-30 disabled:cursor-not-allowed"
             >
-              Revocar acceso
+              Eliminar usuario
             </button>
           ) : (
             <span className="flex items-center gap-2">
-              <span className="text-xs text-zinc-500">¿Seguro?</span>
+              <span className="text-xs text-zinc-500">Borra su cuenta por completo, ¿seguro?</span>
               <button
                 onClick={revoke}
                 disabled={isPending}
                 className="text-xs font-semibold text-red-600 hover:text-red-700"
               >
-                Sí, revocar
+                Sí, eliminar
               </button>
               <button
                 onClick={() => setConfirmingRevoke(false)}

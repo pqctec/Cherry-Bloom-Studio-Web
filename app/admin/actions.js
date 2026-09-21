@@ -263,15 +263,33 @@ export async function updateUserRole(userId, role) {
   revalidatePath('/admin/usuarios')
 }
 
-// Revoca el acceso al panel (borra su perfil/rol) sin borrar la cuenta de
-// autenticación en sí, por si se quiere reactivar después.
+// Revoca el acceso al panel Y borra la cuenta de autenticación por
+// completo (no solo su fila en "profiles"). Antes solo se borraba el
+// perfil y se dejaba la cuenta de Supabase Auth viva "por si se quería
+// reactivar" — pero como no existe ninguna forma de reactivar a alguien
+// sin volver a invitarlo/darlo de alta de cero, esa cuenta huérfana no
+// servía para nada y sí causaba errores raros (Supabase la detecta como
+// "ya registrada") al volver a invitar el mismo correo o teléfono más
+// adelante. Por eso ahora se borra todo de una vez.
 export async function revokeUserAccess(userId) {
   const session = await requireAdmin()
   if (session.user.id === userId) {
-    throw new Error('No puedes revocarte el acceso a ti mismo.')
+    throw new Error('No puedes eliminar tu propio usuario.')
   }
 
   const admin = createAdminSupabaseClient()
+
+  const { error: deleteAuthError } = await admin.auth.admin.deleteUser(userId)
+  // Si la cuenta de Auth ya no existía (por ejemplo, alguien la borró a
+  // mano desde el dashboard de Supabase), no es un error real: seguimos
+  // igual para limpiar su fila en profiles.
+  const authUserMissing =
+    deleteAuthError &&
+    (deleteAuthError.status === 404 || /not\s*found/i.test(deleteAuthError.message || ''))
+  if (deleteAuthError && !authUserMissing) {
+    throw new Error(deleteAuthError.message)
+  }
+
   const { error } = await admin.from('profiles').delete().eq('id', userId)
   if (error) throw new Error(error.message)
 
