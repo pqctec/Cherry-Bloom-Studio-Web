@@ -236,8 +236,10 @@ function UserRow({ user, currentUserId }) {
   const [isPending, startTransition] = useTransition()
   const [confirmingRevoke, setConfirmingRevoke] = useState(false)
   const [error, setError] = useState('')
+  const [resent, setResent] = useState(false)
   const isSelf = user.id === currentUserId
   const identity = displayIdentity(user)
+  const isEmailAccount = !user.email?.endsWith(`@${STAFF_EMAIL_DOMAIN}`)
 
   function toggleRole() {
     setError('')
@@ -247,6 +249,20 @@ function UserRow({ user, currentUserId }) {
         await updateUserRole(user.id, nextRole)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'No se pudo cambiar el rol.')
+      }
+    })
+  }
+
+  function resend() {
+    setError('')
+    setResent(false)
+    startTransition(async () => {
+      try {
+        await resendInvite(user.id)
+        setResent(true)
+        setTimeout(() => setResent(false), 4000)
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'No se pudo reenviar la invitación.')
       }
     })
   }
@@ -287,6 +303,16 @@ function UserRow({ user, currentUserId }) {
           >
             Hacer {user.role === 'admin' ? 'empleado' : 'admin'}
           </button>
+
+          {isEmailAccount && (
+            <button
+              onClick={resend}
+              disabled={isPending}
+              className="text-xs font-medium text-zinc-600 hover:text-zinc-950 disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              {resent ? 'Reenviado ✓' : 'Reenviar invitación'}
+            </button>
+          )}
 
           {!confirmingRevoke ? (
             <button
