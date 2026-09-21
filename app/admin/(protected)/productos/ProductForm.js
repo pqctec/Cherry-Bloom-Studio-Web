@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import { CURRENCY_SYMBOL } from '@/lib/price'
 
 const NEW_CATEGORY_VALUE = '__nueva__'
 
@@ -337,68 +338,76 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
         />
       </div>
 
+      {/* Precio y costo: solo números. Antes había un campo de texto libre
+          "Precio" donde se podía escribir cualquier cosa ("Cotizar", "S/
+          25", etc.) — eso ya no existe. Ahora el único dato que se ingresa
+          es el monto numérico, con "S/" fijo como prefijo visual (la moneda
+          de toda la app está fija en soles, ver CURRENCY_SYMBOL en
+          lib/price.js), y el texto que se muestra en el catálogo se genera
+          solo a partir de ese número (ver readProductFields en
+          app/admin/actions.js). Si se deja vacío, el producto queda como
+          "Cotizar", igual que antes. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-            Precio
+            Precio de venta
           </label>
-          <input
-            name="price"
-            defaultValue={initial.price || 'Cotizar'}
-            placeholder="Cotizar, S/ 25, etc."
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-            Insignia (opcional)
-          </label>
-          <input
-            name="badge"
-            defaultValue={initial.badge}
-            placeholder="ej. Nuevo, Oferta"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-            Precio en soles (para ventas/cotizaciones)
-          </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            name="price_amount"
-            defaultValue={initial.price_amount ?? ''}
-            placeholder="ej. 25.00"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
+              {CURRENCY_SYMBOL}
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              name="price_amount"
+              defaultValue={initial.price_amount ?? ''}
+              placeholder="25.00"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
           <p className="text-xs text-zinc-400 mt-1.5">
-            Opcional. El campo "Precio" de arriba es el texto que se ve en el catálogo (puede decir
-            "Cotizar"); este es el monto numérico que se usa al armar una venta o cotización.
+            Solo el número — la app siempre lo muestra en soles. Si lo dejas vacío, el producto
+            queda como "Cotizar".
           </p>
         </div>
         <div>
           <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
             Costo (para calcular margen)
           </label>
-          <input
-            type="number"
-            min="0"
-            step="0.01"
-            name="cost_price"
-            defaultValue={initial.cost_price ?? ''}
-            placeholder="ej. 15.00"
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
+          <div className="relative">
+            <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-sm text-zinc-400">
+              {CURRENCY_SYMBOL}
+            </span>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              inputMode="decimal"
+              name="cost_price"
+              defaultValue={initial.cost_price ?? ''}
+              placeholder="15.00"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          </div>
           <p className="text-xs text-zinc-400 mt-1.5">
             Se actualiza solo cada vez que registras una compra de este producto, pero puedes
             editarlo aquí también.
           </p>
         </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Insignia (opcional)
+        </label>
+        <input
+          name="badge"
+          defaultValue={initial.badge}
+          placeholder="ej. Nuevo, Oferta"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        />
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

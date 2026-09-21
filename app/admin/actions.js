@@ -7,6 +7,7 @@ import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { requireStaff, requireAdmin } from '@/lib/authz'
 import { normalizePhone, STAFF_EMAIL_DOMAIN } from '@/lib/phone'
+import { formatCurrency } from '@/lib/price'
 
 // -----------------------------------------------------------------------------
 // Sesión
@@ -22,18 +23,27 @@ export async function signOutAction() {
 // -----------------------------------------------------------------------------
 function readProductFields(formData) {
   const nivel = String(formData.get('nivel') || '1').trim()
+  // El registro de productos ya no deja escribir el precio como texto libre
+  // (antes se podía poner "S/. 29.99", "Cotizar", o cualquier cosa, y eso
+  // causaba el bug de /cotizar documentado en lib/price.js). Ahora el
+  // usuario solo ingresa un número en "Precio de venta" y ese número es la
+  // única fuente de verdad: el texto que se guarda en "price" (el que
+  // muestran el catálogo y las tablas del panel) se genera aquí mismo con
+  // formatCurrency(), siempre en soles. Si no se ingresó un precio, el
+  // producto sigue quedando como "Cotizar", igual que antes.
+  const price_amount = formData.get('price_amount') ? Number(formData.get('price_amount')) : null
   return {
     category: String(formData.get('category') || '').trim(),
     name: String(formData.get('name') || '').trim(),
     description: String(formData.get('description') || '').trim() || null,
-    price: String(formData.get('price') || 'Cotizar').trim() || 'Cotizar',
+    price: formatCurrency(price_amount) || 'Cotizar',
     icon: String(formData.get('icon') || 'chip').trim(),
     nivel,
     idchild: nivel === '2' ? String(formData.get('idchild') || '').trim() || null : null,
     badge: String(formData.get('badge') || '').trim() || null,
     stock_qty: Number(formData.get('stock_qty') || 0),
     low_stock_threshold: Number(formData.get('low_stock_threshold') || 3),
-    price_amount: formData.get('price_amount') ? Number(formData.get('price_amount')) : null,
+    price_amount,
     cost_price: formData.get('cost_price') ? Number(formData.get('cost_price')) : null,
   }
 }
