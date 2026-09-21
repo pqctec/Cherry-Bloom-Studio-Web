@@ -3,11 +3,12 @@
 import { Suspense, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { resolveLoginEmail } from './actions'
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [email, setEmail] = useState('')
+  const [identifier, setIdentifier] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -18,14 +19,21 @@ function LoginForm() {
     setLoading(true)
 
     try {
+      const resolvedEmail = await resolveLoginEmail(identifier)
+      if (!resolvedEmail) {
+        setError('No encontramos una cuenta con ese correo o teléfono.')
+        setLoading(false)
+        return
+      }
+
       const supabase = createClient()
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
+        email: resolvedEmail,
         password,
       })
 
       if (signInError) {
-        setError('Correo o contraseña incorrectos.')
+        setError('Usuario o contraseña incorrectos.')
         setLoading(false)
         return
       }
@@ -49,18 +57,18 @@ function LoginForm() {
       className="bg-white border border-zinc-200 rounded-3xl shadow-sm p-8 space-y-5"
     >
       <div>
-        <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-          Correo
+        <label htmlFor="identifier" className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Correo o teléfono
         </label>
         <input
-          id="email"
-          type="email"
+          id="identifier"
+          type="text"
           required
-          autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          autoComplete="username"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
           className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-950 focus:outline-none focus:ring-2 focus:ring-zinc-900 focus:border-transparent"
-          placeholder="tucorreo@ejemplo.com"
+          placeholder="tucorreo@ejemplo.com o tu teléfono"
         />
       </div>
 

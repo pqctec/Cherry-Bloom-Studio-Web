@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { inviteUser, updateUserRole, revokeUserAccess } from '@/app/admin/actions'
+import { inviteUser, updateUserRole, revokeUserAccess, createStaffByPhone } from '@/app/admin/actions'
+import { STAFF_EMAIL_DOMAIN } from '@/lib/phone'
 
 function InviteForm() {
   const [isPending, startTransition] = useTransition()
@@ -27,8 +28,11 @@ function InviteForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 mb-8 grid gap-4 sm:grid-cols-[2fr_2fr_1fr_auto] items-end"
+      className="rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 mb-6 grid gap-4 sm:grid-cols-[2fr_2fr_1fr_auto] items-end"
     >
+      <div className="sm:col-span-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">Invitar por correo</p>
+      </div>
       <div>
         <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
           Correo
@@ -80,8 +84,152 @@ function InviteForm() {
           {success}
         </p>
       )}
+      <p className="sm:col-span-4 text-xs text-zinc-400">
+        Le llega un correo de Supabase para que cree su contraseña. Revisa también spam si tarda.
+      </p>
     </form>
   )
+}
+
+function buildWhatsAppMessage({ fullName, phone, tempPassword, siteOrigin }) {
+  const firstName = fullName ? fullName.trim().split(/\s+/)[0] : ''
+  const greeting = firstName ? `Hola ${firstName}!` : 'Hola!'
+  return (
+    `${greeting} Ya tienes acceso al panel de Cherry Bloom Studio.\n\n` +
+    `Entra en: ${siteOrigin}/admin/login\n` +
+    `Usuario (tu teléfono): ${phone}\n` +
+    `Contraseña: ${tempPassword}\n\n` +
+    `Por seguridad, no compartas esta contraseña con nadie más.`
+  )
+}
+
+function PhoneInviteForm() {
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
+
+  function handleSubmit(e) {
+    e.preventDefault()
+    setError('')
+    setResult(null)
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      try {
+        const data = await createStaffByPhone(formData)
+        setResult(data)
+        e.target.reset()
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'No se pudo dar de alta al empleado.')
+      }
+    })
+  }
+
+  const siteOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+  const waLink = result
+    ? `https://wa.me/${result.phone}?text=${encodeURIComponent(
+        buildWhatsAppMessage({ ...result, siteOrigin })
+      )}`
+    : ''
+
+  return (
+    <form
+      onSubmit={handleSubmit}
+      className="rounded-3xl border border-zinc-200 bg-white p-6 sm:p-8 mb-8 grid gap-4 sm:grid-cols-[2fr_2fr_1fr_auto] items-end"
+    >
+      <div className="sm:col-span-4">
+        <p className="text-xs font-semibold uppercase tracking-widest text-zinc-400">
+          Agregar por WhatsApp (sin correo)
+        </p>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Nombre
+        </label>
+        <input
+          name="full_name"
+          required
+          placeholder="Nombre completo"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Teléfono
+        </label>
+        <input
+          name="phone"
+          type="tel"
+          required
+          placeholder="987654321"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Rol
+        </label>
+        <select
+          name="role"
+          defaultValue="empleado"
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        >
+          <option value="empleado">Empleado</option>
+          <option value="admin">Administrador</option>
+        </select>
+      </div>
+      <button
+        type="submit"
+        disabled={isPending}
+        className="rounded-full bg-zinc-950 hover:bg-zinc-800 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 transition-colors"
+      >
+        {isPending ? 'Guardando...' : '+ Agregar'}
+      </button>
+
+      {error && (
+        <p className="sm:col-span-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+          {error}
+        </p>
+      )}
+
+      {result && (
+        <div className="sm:col-span-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 space-y-3">
+          <p className="text-sm font-semibold text-emerald-800">
+            {result.wasExisting ? 'Se generó una nueva contraseña' : 'Cuenta creada'} para {result.fullName}
+          </p>
+          <p className="text-xs text-emerald-700">
+            Usuario (teléfono): <strong>{result.phone}</strong>
+            <br />
+            Contraseña temporal: <strong className="font-mono">{result.tempPassword}</strong>
+          </p>
+          <a
+            href={waLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-4 py-2.5 transition-colors"
+          >
+            Compartir por WhatsApp
+          </a>
+          <p className="text-[11px] text-emerald-600">
+            Esta contraseña no se vuelve a mostrar — cópiala o mándala ahora. Si la pierde, puedes
+            volver a agregarlo con el mismo teléfono para generarle una nueva.
+          </p>
+        </div>
+      )}
+
+      <p className="sm:col-span-4 text-xs text-zinc-400">
+        No le llega ningún correo: tú le mandas su usuario y contraseña por WhatsApp con el botón de
+        arriba, apenas se cree la cuenta.
+      </p>
+    </form>
+  )
+}
+
+function displayIdentity(user) {
+  const isInternalEmail = user.email?.endsWith(`@${STAFF_EMAIL_DOMAIN}`)
+  if (isInternalEmail && user.phone) {
+    return { primary: user.full_name || '—', secondary: `📱 ${user.phone}` }
+  }
+  return { primary: user.full_name || '—', secondary: user.email }
 }
 
 function UserRow({ user, currentUserId }) {
@@ -89,6 +237,7 @@ function UserRow({ user, currentUserId }) {
   const [confirmingRevoke, setConfirmingRevoke] = useState(false)
   const [error, setError] = useState('')
   const isSelf = user.id === currentUserId
+  const identity = displayIdentity(user)
 
   function toggleRole() {
     setError('')
@@ -116,8 +265,8 @@ function UserRow({ user, currentUserId }) {
   return (
     <tr className="border-b border-zinc-100 last:border-0">
       <td className="px-5 py-4">
-        <p className="font-medium text-zinc-900">{user.full_name || '—'}</p>
-        <p className="text-xs text-zinc-400">{user.email}</p>
+        <p className="font-medium text-zinc-900">{identity.primary}</p>
+        <p className="text-xs text-zinc-400">{identity.secondary}</p>
       </td>
       <td className="px-5 py-4">
         <span
@@ -177,6 +326,7 @@ export default function UsersPanel({ users, currentUserId }) {
   return (
     <div>
       <InviteForm />
+      <PhoneInviteForm />
 
       <div className="overflow-x-auto rounded-3xl border border-zinc-200 bg-white">
         <table className="w-full text-sm">
@@ -201,11 +351,6 @@ export default function UsersPanel({ users, currentUserId }) {
           </tbody>
         </table>
       </div>
-
-      <p className="text-xs text-zinc-400 mt-4">
-        Al invitar a alguien le llega un correo de Supabase para que cree su contraseña.
-        Revisa también la carpeta de spam si tarda en llegar.
-      </p>
     </div>
   )
 }
