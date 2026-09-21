@@ -176,6 +176,34 @@ export async function inviteUser(formData) {
   revalidatePath('/admin/usuarios')
 }
 
+// Reenvía el correo de invitación a alguien que ya está en la tabla
+// (por ejemplo porque el primer correo se perdió, tardó, o el link llegó
+// roto por un problema de configuración ya corregido). Antes la única
+// forma de "reintentar" era borrar a la persona y volver a invitarla desde
+// cero — lo cual, si su cuenta de Auth seguía viva, chocaba con el error
+// "ya registrado". Esto simplemente le vuelve a pedir a Supabase el mismo
+// correo de invitación para una cuenta que ya existe, sin tocar su fila en
+// profiles (mantiene el mismo rol).
+export async function resendInvite(userId) {
+  await requireAdmin()
+  const admin = createAdminSupabaseClient()
+
+  const { data: profile, error: profileError } = await admin
+    .from('profiles')
+    .select('email')
+    .eq('id', userId)
+    .maybeSingle()
+
+  if (profileError) throw new Error(profileError.message)
+  if (!profile?.email) throw new Error('Este usuario no tiene un correo registrado.')
+  if (profile.email.endsWith(`@${STAFF_EMAIL_DOMAIN}`)) {
+    throw new Error('Este usuario se dio de alta por WhatsApp, no por correo. Usa "Agregar por WhatsApp" con su mismo teléfono para generarle una nueva contraseña.')
+  }
+
+  const { error } = await admin.auth.admin.inviteUserByEmail(profile.email)
+  if (error) throw new Error(error.message)
+}
+
 function generateTempPassword() {
   // Formato corto y fácil de teclear en un celular: "CB" + 6 dígitos.
   const digits = String(randomInt(0, 1_000_000)).padStart(6, '0')

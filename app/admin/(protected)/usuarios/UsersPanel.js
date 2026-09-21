@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { inviteUser, updateUserRole, revokeUserAccess, createStaffByPhone } from '@/app/admin/actions'
+import { inviteUser, updateUserRole, revokeUserAccess, createStaffByPhone, resendInvite } from '@/app/admin/actions'
 import { STAFF_EMAIL_DOMAIN } from '@/lib/phone'
 
 function InviteForm() {
