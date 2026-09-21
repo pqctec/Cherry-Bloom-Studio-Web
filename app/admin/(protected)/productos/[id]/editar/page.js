@@ -17,7 +17,7 @@ export default async function EditProductPage({ params }) {
   const admin = createAdminSupabaseClient()
   const [{ data: product }, { data: parents }, { data: categoryRows }] = await Promise.all([
     admin.from('products').select('*').eq('id', id).maybeSingle(),
-    admin.from('products').select('id, name').eq('nivel', '1').order('name', { ascending: true }),
+    admin.from('products').select('id, name, category').eq('nivel', '1').order('name', { ascending: true }),
     admin.from('products').select('category'),
   ])
 

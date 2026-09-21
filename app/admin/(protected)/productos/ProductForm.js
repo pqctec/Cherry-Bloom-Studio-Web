@@ -1,38 +1,12 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useRef, useState, useTransition } from 'react'
 
 const NEW_CATEGORY_VALUE = '__nueva__'
 
 export default function ProductForm({ action, initial = {}, parentOptions = [], categories = [], mode }) {
-  const [nivel, setNivel] = useState(initial.nivel || '1')
-  const [parentId, setParentId] = useState(initial.idchild || '')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
-
-  // Vista previa de la foto — igual que en "Hacer inventario", que ya usaba
-  // este mismo patrón para fotos tomadas con la cámara del celular.
-  const [photoPreview, setPhotoPreview] = useState('')
-  const [photoName, setPhotoName] = useState('')
-
-  function handlePhotoChange(e) {
-    const file = e.target.files?.[0] || null
-    setPhotoPreview(file ? URL.createObjectURL(file) : '')
-    setPhotoName(file ? file.name : '')
-  }
-
-  // Sugerencia de código para el campo "Código único" de abajo: si es un
-  // subproducto, muestra como ejemplo el código del padre elegido (los
-  // subproductos suelen seguir ese patrón, ej. cus-008-caja-01), para que no
-  // haya que adivinar el formato. No se autocompleta solo — sigue siendo el
-  // usuario quien escribe el código final — porque generarlo automático
-  // podría chocar con uno que ya existe.
-  const idPlaceholder =
-    nivel === '2'
-      ? parentId
-        ? `ej. ${parentId}-variante-1`
-        : 'Primero elige a qué categoría pertenece, arriba'
-      : 'ej. rep-004'
 
   // Categorías que ya existen en el catálogo (vienen del servidor, calculadas
   // a partir de los productos guardados) para que el selector siempre
@@ -52,10 +26,97 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
   })
   const isNewCategory = categoryChoice === NEW_CATEGORY_VALUE
 
+  const [nivel, setNivel] = useState(initial.nivel || '1')
+  const [parentId, setParentId] = useState(initial.idchild || '')
+
+  // La categoría va ANTES que el nivel a propósito: así "Pertenece a" se
+  // puede filtrar por esa categoría en vez de mostrar TODOS los productos
+  // principales del catálogo mezclados. Antes, por ejemplo, había un
+  // "Otros" de Estampados, uno de Belleza y uno de Bloom Gifts, todos en la
+  // misma lista sin forma de distinguirlos a simple vista.
+  const filteredParentOptions = useMemo(() => {
+    if (isNewCategory) return []
+    return parentOptions.filter((p) => (p.category || '').trim() === categoryChoice)
+  }, [parentOptions, categoryChoice, isNewCategory])
+
+  // Si cambia la categoría después de haber elegido un padre, ese padre ya
+  // no necesariamente pertenece a la nueva categoría — se limpia la
+  // selección para no dejar guardado un "pertenece a" que no calza. No se
+  // dispara en el primer render (ahí es cuando se precarga el idchild de un
+  // producto que se está editando).
+  const skipNextReset = useRef(true)
+  useEffect(() => {
+    if (skipNextReset.current) {
+      skipNextReset.current = false
+      return
+    }
+    setParentId('')
+    // Una categoría recién escrita todavía no tiene productos principales,
+    // así que "Subproducto" no es una opción válida hasta que se cree uno.
+    if (categoryChoice === NEW_CATEGORY_VALUE) {
+      setNivel('1')
+    }
+  }, [categoryChoice])
+
+  // Sugerencia de código para el campo "Código único" de abajo: si es un
+  // subproducto, muestra como ejemplo el código del padre elegido (los
+  // subproductos suelen seguir ese patrón, ej. cus-008-caja-01), para que no
+  // haya que adivinar el formato. No se autocompleta solo — sigue siendo el
+  // usuario quien escribe el código final — porque generarlo automático
+  // podría chocar con uno que ya existe.
+  const idPlaceholder =
+    nivel === '2'
+      ? parentId
+        ? `ej. ${parentId}-variante-1`
+        : 'Primero elige a qué producto pertenece, arriba'
+      : 'ej. rep-004'
+
+  // -----------------------------------------------------------------------
+  // Fotos — ahora se puede cargar más de una. Cada foto es "existing" (ya
+  // guardada, viene de initial.image_urls / initial.image_url) o "new" (recién
+  // elegida en este formulario, todavía no subida). Se pueden quitar
+  // individualmente ambos tipos antes de guardar. Al enviar: las "existing"
+  // que sigan en la lista se mandan como URLs a conservar, y las "new" se
+  // suben. El input real no lleva "name" — el armado del FormData para las
+  // fotos se hace a mano en handleSubmit para poder soportar varias.
+  // -----------------------------------------------------------------------
+  const [photos, setPhotos] = useState(() => {
+    const existingUrls =
+      Array.isArray(initial.image_urls) && initial.image_urls.length > 0
+        ? initial.image_urls
+        : initial.image_url
+          ? [initial.image_url]
+          : []
+    return existingUrls.map((url, i) => ({ key: `existing-${i}`, kind: 'existing', url }))
+  })
+
+  function handlePhotosChange(e) {
+    const files = Array.from(e.target.files || [])
+    if (files.length === 0) return
+    const newItems = files.map((file) => ({
+      key: `new-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+      kind: 'new',
+      file,
+      url: URL.createObjectURL(file),
+    }))
+    setPhotos((prev) => [...prev, ...newItems])
+    // Deja elegir el mismo archivo dos veces seguidas si hiciera falta.
+    e.target.value = ''
+  }
+
+  function removePhoto(key) {
+    setPhotos((prev) => prev.filter((p) => p.key !== key))
+  }
+
   function handleSubmit(e) {
     e.preventDefault()
     setError('')
     const formData = new FormData(e.currentTarget)
+
+    const keptExistingUrls = photos.filter((p) => p.kind === 'existing').map((p) => p.url)
+    formData.set('existing_images', JSON.stringify(keptExistingUrls))
+    photos.filter((p) => p.kind === 'new').forEach((p) => formData.append('images', p.file))
+
     startTransition(async () => {
       try {
         await action(formData)
@@ -72,44 +133,101 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl">
-      {/* Primero la foto: así el flujo real coincide con el orden en que se
-          trabaja — el producto ya está sobre la mesa, se le toman las fotos
-          que hagan falta, y recién ahí se completa el resto del formulario.
-          Ojo: SIN el atributo capture="environment" a propósito — con él,
-          Android abre la cámara directo y no deja elegir de la galería (que
-          hace falta cuando la foto ya está tomada, o para reemplazarla con
-          otra que no sea nueva). Sin capture, el celular muestra su propio
-          selector con ambas opciones (cámara o galería). */}
+      {/* Primero las fotos: así el flujo real coincide con el orden en que se
+          trabaja — el producto ya está sobre la mesa, se le toman todas las
+          fotos que hagan falta, y recién ahí se completa el resto del
+          formulario. Ojo: SIN el atributo capture="environment" a propósito
+          — con él, Android abre la cámara directo y no deja elegir de la
+          galería. Sin capture, el celular muestra su propio selector con
+          ambas opciones (cámara o galería). */}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-          Foto del producto
+          Fotos del producto
         </label>
-        <label className="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-100 px-4 py-8 text-center cursor-pointer transition-colors">
-          {photoPreview || initial.image_url ? (
-            <img
-              src={photoPreview || initial.image_url}
-              alt=""
-              className="h-28 w-28 rounded-2xl object-cover border border-zinc-200 mb-1"
-            />
-          ) : (
+
+        {photos.length === 0 ? (
+          <label className="flex flex-col items-center justify-center gap-2 rounded-3xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-100 px-4 py-8 text-center cursor-pointer transition-colors">
             <span className="text-4xl">📷</span>
-          )}
-          <span className="text-sm font-medium text-zinc-700">
-            {photoName || (initial.image_url ? 'Cambiar foto' : 'Tomar foto o elegir archivo')}
-          </span>
-          <input
-            type="file"
-            name="image"
-            accept="image/*"
-            className="hidden"
-            onChange={handlePhotoChange}
-          />
-        </label>
-        <p className="text-xs text-zinc-400 mt-1.5 text-center">
-          {initial.image_url
-            ? 'Deja esto vacío para mantener la foto actual.'
-            : 'Opcional. Formatos: JPG, PNG, WEBP.'}
+            <span className="text-sm font-medium text-zinc-700">Tomar foto o elegir archivos</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={handlePhotosChange}
+            />
+          </label>
+        ) : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+            {photos.map((p) => (
+              <div key={p.key} className="relative">
+                <img
+                  src={p.url}
+                  alt=""
+                  className="h-24 w-full rounded-2xl object-cover border border-zinc-200"
+                />
+                <button
+                  type="button"
+                  onClick={() => removePhoto(p.key)}
+                  aria-label="Quitar foto"
+                  className="absolute -top-1.5 -right-1.5 h-6 w-6 rounded-full bg-zinc-900 text-white text-xs flex items-center justify-center shadow-sm"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            <label className="h-24 rounded-2xl border-2 border-dashed border-zinc-300 bg-zinc-50 hover:bg-zinc-100 active:bg-zinc-100 flex flex-col items-center justify-center gap-1 cursor-pointer transition-colors">
+              <span className="text-2xl text-zinc-400">＋</span>
+              <span className="text-[11px] text-zinc-500">Agregar</span>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={handlePhotosChange}
+              />
+            </label>
+          </div>
+        )}
+
+        <p className="text-xs text-zinc-400 mt-1.5">
+          Puedes elegir varias fotos a la vez, o tocar "Agregar" para sumar más. La primera de la
+          lista es la que se usa como foto principal en el catálogo.
         </p>
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Categoría
+        </label>
+        <select
+          value={categoryChoice}
+          onChange={(e) => setCategoryChoice(e.target.value)}
+          name={isNewCategory ? undefined : 'category'}
+          required={!isNewCategory}
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        >
+          {sortedCategories.length === 0 && (
+            <option value="" disabled>
+              Todavía no hay categorías
+            </option>
+          )}
+          {sortedCategories.map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+          <option value={NEW_CATEGORY_VALUE}>+ Nueva categoría...</option>
+        </select>
+        {isNewCategory && (
+          <input
+            name="category"
+            required
+            autoFocus
+            placeholder="Escribe el nombre de la nueva categoría"
+            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+          />
+        )}
       </div>
 
       <div>
@@ -135,11 +253,18 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
               value="2"
               checked={nivel === '2'}
               onChange={() => setNivel('2')}
+              disabled={isNewCategory}
               className="h-4 w-4 shrink-0"
             />
             Subproducto dentro de una categoría
           </label>
         </div>
+        {isNewCategory && (
+          <p className="text-xs text-zinc-400 mt-1.5">
+            Una categoría nueva todavía no tiene productos principales — primero crea uno como
+            "Categoría principal" en ella, y después podrás agregarle subproductos.
+          </p>
+        )}
       </div>
 
       {nivel === '2' && (
@@ -153,13 +278,21 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
             onChange={(e) => setParentId(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
           >
-            <option value="">Selecciona una categoría principal...</option>
-            {parentOptions.map((p) => (
+            <option value="">
+              {filteredParentOptions.length === 0
+                ? `No hay productos principales en "${categoryChoice}" todavía`
+                : 'Selecciona el producto principal...'}
+            </option>
+            {filteredParentOptions.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.id})
               </option>
             ))}
           </select>
+          <p className="text-xs text-zinc-400 mt-1.5">
+            Solo se muestran los productos principales de "{categoryChoice}" — cambia la categoría de
+            arriba si el que buscas está en otra.
+          </p>
         </div>
       )}
 
@@ -180,51 +313,16 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-            Nombre
-          </label>
-          <input
-            name="name"
-            required
-            defaultValue={initial.name}
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
-            Categoría
-          </label>
-          <select
-            value={categoryChoice}
-            onChange={(e) => setCategoryChoice(e.target.value)}
-            name={isNewCategory ? undefined : 'category'}
-            required={!isNewCategory}
-            className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          >
-            {sortedCategories.length === 0 && (
-              <option value="" disabled>
-                Todavía no hay categorías
-              </option>
-            )}
-            {sortedCategories.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-            <option value={NEW_CATEGORY_VALUE}>+ Nueva categoría...</option>
-          </select>
-          {isNewCategory && (
-            <input
-              name="category"
-              required
-              autoFocus
-              placeholder="Escribe el nombre de la nueva categoría"
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-zinc-900"
-            />
-          )}
-        </div>
+      <div>
+        <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
+          Nombre
+        </label>
+        <input
+          name="name"
+          required
+          defaultValue={initial.name}
+          className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
+        />
       </div>
 
       <div>

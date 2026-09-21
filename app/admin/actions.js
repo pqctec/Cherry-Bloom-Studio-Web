@@ -38,25 +38,46 @@ function readProductFields(formData) {
   }
 }
 
-async function uploadImageIfProvided(admin, formData, existingUrl) {
-  const file = formData.get('image')
-  if (!file || typeof file === 'string' || file.size === 0) {
-    return existingUrl || null
+// Sube todas las fotos nuevas que llegaron en el campo "images" (puede haber
+// más de una — ProductForm.js las agrega todas con el mismo nombre de
+// campo) y devuelve sus URLs públicas, en el mismo orden en que llegaron.
+async function uploadNewImages(admin, formData) {
+  const files = formData
+    .getAll('images')
+    .filter((f) => f && typeof f !== 'string' && f.size > 0)
+
+  const urls = []
+  for (const file of files) {
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+
+    const { error: uploadError } = await admin.storage
+      .from('product-images')
+      .upload(path, file, { contentType: file.type, upsert: false })
+
+    if (uploadError) {
+      throw new Error(`No se pudo subir una de las fotos: ${uploadError.message}`)
+    }
+
+    const { data } = admin.storage.from('product-images').getPublicUrl(path)
+    urls.push(data.publicUrl)
   }
+  return urls
+}
 
-  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
-  const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-
-  const { error: uploadError } = await admin.storage
-    .from('product-images')
-    .upload(path, file, { contentType: file.type, upsert: false })
-
-  if (uploadError) {
-    throw new Error(`No se pudo subir la imagen: ${uploadError.message}`)
+// Fotos ya guardadas que el usuario dejó (no quitó) en el formulario —
+// ProductForm.js manda esto como JSON en "existing_images". Si por algo no
+// viene (formulario viejo en caché, por ejemplo), se usa lo que ya tenía el
+// producto para no perder fotos por accidente.
+function readKeptExistingImages(formData, fallbackUrls) {
+  const raw = formData.get('existing_images')
+  if (raw === null) return fallbackUrls
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed.filter((u) => typeof u === 'string' && u) : []
+  } catch {
+    return fallbackUrls
   }
-
-  const { data } = admin.storage.from('product-images').getPublicUrl(path)
-  return data.publicUrl
 }
 
 export async function createProduct(formData) {
@@ -67,12 +88,18 @@ export async function createProduct(formData) {
   if (!id) throw new Error('El código del producto es obligatorio.')
 
   const fields = readProductFields(formData)
-  const image_url = await uploadImageIfProvided(admin, formData, null)
+  const newUrls = await uploadNewImages(admin, formData)
+  // En "crear" no hay fotos existentes que conservar — image_urls es
+  // directamente lo recién subido. La primera queda como image_url, la foto
+  // "principal" que ya usan el catálogo público y las tablas del panel.
+  const image_urls = newUrls
+  const image_url = image_urls[0] || null
 
   const { error } = await admin.from('products').insert({
     id,
     ...fields,
     image_url,
+    image_urls,
     updated_at: new Date().toISOString(),
   })
 
@@ -94,16 +121,26 @@ export async function updateProduct(id, formData) {
 
   const { data: existing } = await admin
     .from('products')
-    .select('image_url')
+    .select('image_url, image_urls')
     .eq('id', id)
     .maybeSingle()
 
+  const existingFallback =
+    Array.isArray(existing?.image_urls) && existing.image_urls.length > 0
+      ? existing.image_urls
+      : existing?.image_url
+        ? [existing.image_url]
+        : []
+
   const fields = readProductFields(formData)
-  const image_url = await uploadImageIfProvided(admin, formData, existing?.image_url)
+  const keptUrls = readKeptExistingImages(formData, existingFallback)
+  const newUrls = await uploadNewImages(admin, formData)
+  const image_urls = [...keptUrls, ...newUrls]
+  const image_url = image_urls[0] || null
 
   const { error } = await admin
     .from('products')
-    .update({ ...fields, image_url, updated_at: new Date().toISOString() })
+    .update({ ...fields, image_url, image_urls, updated_at: new Date().toISOString() })
     .eq('id', id)
 
   if (error) throw new Error(error.message)

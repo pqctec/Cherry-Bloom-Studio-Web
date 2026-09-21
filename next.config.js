@@ -13,16 +13,18 @@ const nextConfig = {
 
   // Por defecto, Next.js limita a 1 MB el body que puede llegar a un Server
   // Action (para evitar abuso/DDoS). Se subió primero a 8 MB por los
-  // adjuntos de diseño/logo en /cotizar (Estampados), y ahora a 12 MB porque
-  // el módulo de inventario (/admin/inventario) sube fotos tomadas directo
-  // con la cámara del celular, que suelen pesar más que un archivo escaneado
-  // a mano. La validación real de tipo y tamaño de cada archivo sigue
-  // pasando en cada Server Action (app/cotizar/actions.js,
-  // app/admin/(protected)/inventario/actions.js); esto solo evita que un
-  // adjunto normal rebote antes de siquiera llegar a esa validación.
+  // adjuntos de diseño/logo en /cotizar (Estampados), después a 12 MB por
+  // las fotos de "Hacer inventario" tomadas directo con la cámara del
+  // celular, y ahora a 30 MB porque el registro de productos
+  // (app/admin/(protected)/productos/ProductForm.js) permite subir varias
+  // fotos de una vez en un mismo envío. La validación real de tipo y tamaño
+  // de cada archivo sigue pasando en cada Server Action (app/cotizar/actions.js,
+  // app/admin/(protected)/inventario/actions.js, app/admin/actions.js); esto
+  // solo evita que un envío normal rebote antes de siquiera llegar a esa
+  // validación.
   experimental: {
     serverActions: {
-      bodySizeLimit: '12mb',
+      bodySizeLimit: '30mb',
     },
   },
 }
