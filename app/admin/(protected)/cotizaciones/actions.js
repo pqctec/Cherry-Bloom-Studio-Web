@@ -125,3 +125,18 @@ export async function deleteQuoteRequest(id) {
   if (error) throw new Error(error.message)
   revalidatePath('/admin/cotizaciones')
 }
+
+// -----------------------------------------------------------------------------
+// Cotizaciones "en curso" (tabla quote_drafts): lo que un visitante lleva
+// armado en /cotizar antes de enviarlo, guardado automáticamente por
+// app/cotizar/actions.js mientras navega. Cualquier miembro del staff puede
+// descartar una (por ejemplo, si ya lo contactó por otro medio o decide que
+// no vale la pena seguirlo).
+// -----------------------------------------------------------------------------
+export async function discardQuoteDraft(id) {
+  await requireStaff()
+  const admin = createAdminSupabaseClient()
+  const { error } = await admin.from('quote_drafts').delete().eq('id', id)
+  if (error) throw new Error(error.message)
+  revalidatePath('/admin/cotizaciones')
+}

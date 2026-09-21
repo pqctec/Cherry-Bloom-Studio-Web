@@ -3,6 +3,7 @@ import { getSessionProfile } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import CotizacionesPanel from './CotizacionesPanel'
 import SolicitudesPanel from './SolicitudesPanel'
+import QuoteDraftsPanel from './QuoteDraftsPanel'
 
 export const dynamic = 'force-dynamic'
 
@@ -18,9 +19,10 @@ export default async function CotizacionesPage() {
   const isAdmin = session.profile.role === 'admin'
 
   const admin = createAdminSupabaseClient()
-  const [{ data: quotes }, { data: requests }] = await Promise.all([
+  const [{ data: quotes }, { data: requests }, { data: drafts }] = await Promise.all([
     admin.from('quotes').select('*, customer:customers(full_name, phone)').order('created_at', { ascending: false }),
     admin.from('quote_requests').select('*').order('created_at', { ascending: false }),
+    admin.from('quote_drafts').select('*').order('updated_at', { ascending: false }).limit(50),
   ])
 
   return (
@@ -39,6 +41,8 @@ export default async function CotizacionesPage() {
           + Nueva cotización
         </Link>
       </div>
+
+      <QuoteDraftsPanel drafts={drafts || []} />
 
       <SolicitudesPanel requests={requests || []} isAdmin={isAdmin} />
 

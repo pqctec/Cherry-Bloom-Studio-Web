@@ -1,10 +1,31 @@
 'use client'
 
-import { useMemo, useState, useTransition } from 'react'
+import { useEffect, useMemo, useState, useTransition } from 'react'
 import { useTheme } from '@/lib/ThemeContext'
-import { submitQuoteRequest } from './actions'
+import { submitQuoteRequest, saveQuoteDraft } from './actions'
 import { generateQuotePdf } from '@/lib/pdf/generateQuotePdf'
 import { parsePriceAmount } from '@/lib/price'
+
+// Id anónimo de esta visita, para que el negocio pueda ver en el panel quién
+// está cotizando ahora mismo (ver saveQuoteDraft más abajo) sin pedirle
+// cuenta ni login a nadie. Se guarda en localStorage para reconocer, si
+// recarga la página o vuelve más tarde, que sigue siendo la misma visita.
+function getOrCreateSessionId() {
+  if (typeof window === 'undefined') return ''
+  try {
+    const KEY = 'cbs_quote_session_id'
+    let id = window.localStorage.getItem(KEY)
+    if (!id) {
+      id = window.crypto?.randomUUID
+        ? window.crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      window.localStorage.setItem(KEY, id)
+    }
+    return id
+  } catch {
+    return ''
+  }
+}
 
 // Mismos números que Footer/Contacto/ProductDetailPage para cada línea de
 // negocio, así el cliente siempre termina escribiéndole a la persona correcta.
@@ -183,6 +204,9 @@ function CartPanel({
   isPending,
   error,
   onSubmit,
+  onNameChange,
+  onPhoneChange,
+  onEmailChange,
 }) {
   return (
     <div className="rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -273,6 +297,7 @@ function CartPanel({
                 <input
                   name="customer_name"
                   required
+                  onChange={(e) => onNameChange?.(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
@@ -284,6 +309,7 @@ function CartPanel({
                   name="customer_phone"
                   required
                   placeholder="9XXXXXXXX"
+                  onChange={(e) => onPhoneChange?.(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
@@ -294,6 +320,7 @@ function CartPanel({
                 <input
                   type="email"
                   name="customer_email"
+                  onChange={(e) => onEmailChange?.(e.target.value)}
                   className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
                 />
               </div>
@@ -348,6 +375,12 @@ export default function CotizarClient({ products }) {
   const [error, setError] = useState('')
   const [confirmation, setConfirmation] = useState(null) // { name, phone, email, notes, items, quoteNumber, id }
   const [pdfError, setPdfError] = useState('')
+  const [sessionId] = useState(getOrCreateSessionId)
+  // Solo para el autoguardado del borrador (no controlan los inputs, que
+  // siguen siendo no-controlados como antes — ver onChange en CartPanel).
+  const [customerName, setCustomerName] = useState('')
+  const [customerPhone, setCustomerPhone] = useState('')
+  const [customerEmail, setCustomerEmail] = useState('')
 
   const themeFiltered = useMemo(() => {
     if (!Array.isArray(products)) return []
@@ -439,6 +472,31 @@ export default function CotizarClient({ products }) {
   const total = cart.reduce((sum, i) => sum + (i.price_amount ? i.price_amount * i.quantity : 0), 0)
   const hasUnpriced = cart.some((i) => !i.price_amount)
 
+  // Autoguardado del borrador "en curso": cada vez que cambia el carrito o
+  // los datos de contacto, espera un momento de inactividad (para no
+  // disparar una llamada por cada tecla) y guarda una foto de lo que lleva
+  // hasta ahora. Si el carrito queda vacío, saveQuoteDraft borra el
+  // borrador — no hay nada que mostrar en el panel de admin.
+  useEffect(() => {
+    if (!sessionId) return
+    const timeoutId = setTimeout(() => {
+      saveQuoteDraft({
+        sessionId,
+        name: customerName,
+        phone: customerPhone,
+        email: customerEmail,
+        items: cart.map((i) => ({
+          name: displayNameFor(i),
+          quantity: i.quantity,
+          price_amount: i.price_amount,
+        })),
+        total,
+      })
+    }, 1500)
+    return () => clearTimeout(timeoutId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cart, customerName, customerPhone, customerEmail, sessionId, total])
+
   function buildWhatsAppSummary(confirmationData) {
     const lines = [
       `Hola, acabo de enviar la cotización N° ${String(confirmationData.quoteNumber ?? 0).padStart(6, '0')} desde la web.`,
@@ -503,6 +561,9 @@ export default function CotizarClient({ products }) {
     cart.forEach((i) => {
       if (i.designFile) formData.append(`design_${i.id}`, i.designFile)
     })
+    // Para que el server action borre el borrador "en curso" de esta misma
+    // visita apenas se confirma el envío de verdad (ver actions.js).
+    formData.set('session_id', sessionId)
 
     const submission = {
       name: String(formData.get('customer_name') || ''),
@@ -597,7 +658,7 @@ export default function CotizarClient({ products }) {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-12">
+    <div className={`max-w-7xl mx-auto px-6 pt-12 ${cart.length > 0 ? 'pb-28 lg:pb-12' : 'pb-12'}`}>
       <div className="mb-8 border-b border-zinc-200 pb-8">
         <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400 mb-2 block">
           Cotización en línea
@@ -723,7 +784,7 @@ export default function CotizarClient({ products }) {
         </div>
 
         {/* Columna derecha: carrito, fijo mientras se hace scroll a la izquierda */}
-        <div className="mt-10 lg:mt-0 lg:sticky lg:top-6">
+        <div id="carrito-cotizacion" className="mt-10 lg:mt-0 lg:sticky lg:top-6 scroll-mt-6">
           <CartPanel
             cart={cart}
             updateQty={updateQty}
@@ -735,9 +796,37 @@ export default function CotizarClient({ products }) {
             isPending={isPending}
             error={error}
             onSubmit={handleSubmit}
+            onNameChange={setCustomerName}
+            onPhoneChange={setCustomerPhone}
+            onEmailChange={setCustomerEmail}
           />
         </div>
       </div>
+
+      {/* Barra fija solo en celular/tablet (en escritorio el carrito ya está
+          siempre visible en la columna derecha, con scroll independiente).
+          Aparece en cuanto hay algo en el carrito, para que se note a
+          simple vista lo que se lleva mientras se sigue navegando — antes
+          había que bajar hasta el final de la página para verlo. */}
+      {cart.length > 0 && (
+        <div className="lg:hidden fixed inset-x-0 bottom-0 z-40 border-t border-zinc-200 bg-white/95 backdrop-blur px-4 py-3 shadow-[0_-4px_16px_rgba(0,0,0,0.08)]">
+          <button
+            type="button"
+            onClick={() =>
+              document.getElementById('carrito-cotizacion')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }
+            className="w-full flex items-center justify-between gap-3 rounded-full bg-zinc-950 text-white px-5 py-3 text-sm font-medium active:scale-[0.98] transition-transform"
+          >
+            <span>
+              {cart.length} {cart.length === 1 ? 'producto' : 'productos'}
+            </span>
+            <span>
+              S/ {total.toFixed(2)}
+              {hasUnpriced ? ' +' : ''} · Ver cotización ↓
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   )
 }

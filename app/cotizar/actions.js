@@ -186,5 +186,66 @@ export async function submitQuoteRequest(formData) {
 
   if (error) throw new Error(error.message)
 
+  // Ya se envió de verdad: si existía un borrador "en curso" de esta misma
+  // visita, se borra (si falla, no pasa nada grave — en el peor caso queda
+  // un borrador viejo dando vueltas en el panel, que el admin puede
+  // descartar a mano).
+  await discardQuoteDraft(admin, String(formData.get('session_id') || '').trim())
+
   return { id: data.id, quote_number: data.quote_number }
+}
+
+// -----------------------------------------------------------------------------
+// Borrador en vivo: mientras el cliente arma su cotización en /cotizar (antes
+// de enviarla), CotizarClient.js guarda automáticamente lo que lleva cada
+// pocos segundos. Así el negocio puede ver en el panel de Cotizaciones quién
+// está cotizando ahora mismo — o se quedó a medias — aunque nunca llegue a
+// enviar nada. session_id es un id que genera el propio navegador (sin login
+// ni cuenta) y guarda en localStorage, para reconocer que los siguientes
+// guardados son de la misma visita. Acción pública, igual que
+// submitQuoteRequest: no requiere sesión.
+export async function saveQuoteDraft(data) {
+  const sessionId = String(data?.sessionId || '').trim()
+  if (!sessionId) return
+
+  const admin = createAdminSupabaseClient()
+  const items = Array.isArray(data?.items) ? data.items : []
+
+  // Sin productos todavía (o el cliente vació el carrito): no vale la pena
+  // guardar — o ya no — un borrador. Se borra si existía.
+  if (items.length === 0) {
+    await discardQuoteDraft(admin, sessionId)
+    return
+  }
+
+  const total = Number(data?.total)
+
+  // Best effort a propósito: esto es solo visibilidad interna para el
+  // negocio, nunca debe interrumpir ni mostrarle un error a quien está
+  // cotizando si por algo falla (red, etc.).
+  try {
+    await admin.from('quote_drafts').upsert(
+      {
+        session_id: sessionId,
+        customer_name: String(data?.name || '').trim() || null,
+        customer_phone: String(data?.phone || '').trim() || null,
+        customer_email: String(data?.email || '').trim() || null,
+        items,
+        total: Number.isFinite(total) ? total : null,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'session_id' }
+    )
+  } catch {
+    // Ver comentario de arriba: nunca debe tumbar la experiencia de cotizar.
+  }
+}
+
+async function discardQuoteDraft(admin, sessionId) {
+  if (!sessionId) return
+  try {
+    await admin.from('quote_drafts').delete().eq('session_id', sessionId)
+  } catch {
+    // Nunca debe tumbar el envío real de la cotización por esto.
+  }
 }
