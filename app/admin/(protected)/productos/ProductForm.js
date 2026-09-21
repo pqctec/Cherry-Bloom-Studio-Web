@@ -1,20 +1,31 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useMemo, useState, useTransition } from 'react'
 
-const CATEGORY_SUGGESTIONS = [
-  'Repuestos',
-  'Reparación',
-  'Asesorias',
-  'Belleza',
-  'Estampados',
-  'Papeleria',
-]
+const NEW_CATEGORY_VALUE = '__nueva__'
 
-export default function ProductForm({ action, initial = {}, parentOptions = [], mode }) {
+export default function ProductForm({ action, initial = {}, parentOptions = [], categories = [], mode }) {
   const [nivel, setNivel] = useState(initial.nivel || '1')
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState('')
+
+  // Categorías que ya existen en el catálogo (vienen del servidor, calculadas
+  // a partir de los productos guardados) para que el selector siempre
+  // refleje lo que realmente se está usando, y no una lista fija que se
+  // desactualiza. Si se está editando un producto cuya categoría ya no está
+  // en la lista (por ejemplo, era la única con ese nombre y se renombró en
+  // otro lado), igual se incluye para no perderla de vista.
+  const sortedCategories = useMemo(() => {
+    const set = new Set(categories.filter(Boolean))
+    if (initial.category) set.add(initial.category)
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es'))
+  }, [categories, initial.category])
+
+  const [categoryChoice, setCategoryChoice] = useState(() => {
+    if (initial.category) return initial.category
+    return sortedCategories.length > 0 ? sortedCategories[0] : NEW_CATEGORY_VALUE
+  })
+  const isNewCategory = categoryChoice === NEW_CATEGORY_VALUE
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -69,18 +80,34 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
           <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
             Categoría
           </label>
-          <input
-            name="category"
-            required
-            list="category-suggestions"
-            defaultValue={initial.category}
+          <select
+            value={categoryChoice}
+            onChange={(e) => setCategoryChoice(e.target.value)}
+            name={isNewCategory ? undefined : 'category'}
+            required={!isNewCategory}
             className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-zinc-900"
-          />
-          <datalist id="category-suggestions">
-            {CATEGORY_SUGGESTIONS.map((c) => (
-              <option key={c} value={c} />
+          >
+            {sortedCategories.length === 0 && (
+              <option value="" disabled>
+                Todavía no hay categorías
+              </option>
+            )}
+            {sortedCategories.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
             ))}
-          </datalist>
+            <option value={NEW_CATEGORY_VALUE}>+ Nueva categoría...</option>
+          </select>
+          {isNewCategory && (
+            <input
+              name="category"
+              required
+              autoFocus
+              placeholder="Escribe el nombre de la nueva categoría"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm mt-2 focus:outline-none focus:ring-2 focus:ring-zinc-900"
+            />
+          )}
         </div>
       </div>
 

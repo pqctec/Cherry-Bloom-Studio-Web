@@ -15,14 +15,18 @@ export default async function EditProductPage({ params }) {
   }
 
   const admin = createAdminSupabaseClient()
-  const [{ data: product }, { data: parents }] = await Promise.all([
+  const [{ data: product }, { data: parents }, { data: categoryRows }] = await Promise.all([
     admin.from('products').select('*').eq('id', id).maybeSingle(),
     admin.from('products').select('id, name').eq('nivel', '1').order('name', { ascending: true }),
+    admin.from('products').select('category'),
   ])
 
   if (!product) notFound()
 
   const boundUpdate = updateProduct.bind(null, id)
+  const categories = Array.from(
+    new Set((categoryRows || []).map((p) => p.category).filter(Boolean))
+  )
 
   return (
     <div>
@@ -40,6 +44,7 @@ export default async function EditProductPage({ params }) {
         mode="edit"
         initial={product}
         parentOptions={(parents || []).filter((p) => p.id !== id)}
+        categories={categories}
       />
     </div>
   )

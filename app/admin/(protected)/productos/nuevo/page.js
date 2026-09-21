@@ -14,11 +14,13 @@ export default async function NewProductPage() {
   }
 
   const admin = createAdminSupabaseClient()
-  const { data: parents } = await admin
-    .from('products')
-    .select('id, name')
-    .eq('nivel', '1')
-    .order('name', { ascending: true })
+  const [{ data: parents }, { data: categoryRows }] = await Promise.all([
+    admin.from('products').select('id, name').eq('nivel', '1').order('name', { ascending: true }),
+    admin.from('products').select('category'),
+  ])
+  const categories = Array.from(
+    new Set((categoryRows || []).map((p) => p.category).filter(Boolean))
+  )
 
   return (
     <div>
@@ -31,7 +33,7 @@ export default async function NewProductPage() {
       <h1 className="text-3xl font-semibold tracking-tight text-zinc-950 mb-8">
         Nuevo producto
       </h1>
-      <ProductForm action={createProduct} mode="create" parentOptions={parents || []} />
+      <ProductForm action={createProduct} mode="create" parentOptions={parents || []} categories={categories} />
     </div>
   )
 }
