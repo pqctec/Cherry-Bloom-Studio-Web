@@ -4,13 +4,20 @@ import { useMemo, useState, useEffect } from 'react'
 import ProductCard from '@/components/ProductCard'
 import { useTheme } from '@/lib/ThemeContext'
 
+// Orden preferido de pestañas por tema — solo afecta el ORDEN en que se
+// muestran las categorías conocidas; no es una lista cerrada. Ver CATEGORIES
+// abajo: cualquier categoría que exista de verdad en los productos pero no
+// esté aquí (por ejemplo porque se renombró una en el panel de admin) se
+// agrega igual al final, en vez de desaparecer como pasaba antes con la
+// lista fija.
+const PREFERRED_CATEGORY_ORDER = {
+  personalizados: ['Belleza', 'Estampados'],
+  default: ['Repuestos', 'Reparación', 'Asesorias'],
+}
+
 export default function CatalogoClient({ products }) {
   const { activeBrand } = useTheme()
   const isCustomizedTheme = activeBrand === 'personalizados'
-
-  const CATEGORIES = isCustomizedTheme
-    ? ['Todos', 'Belleza', 'Estampados', 'Papeleria']
-    : ['Todos', 'Repuestos', 'Reparación', 'Asesorias']
 
   const [active, setActive] = useState('Todos')
   const [selectedParentId, setSelectedParentId] = useState(null)
@@ -44,6 +51,22 @@ export default function CatalogoClient({ products }) {
       }
     })
   }, [products, isCustomizedTheme])
+
+  // Las pestañas de categoría salen de las categorías que de verdad tienen
+  // productos en este tema, no de una lista escrita a mano — así, si en el
+  // panel de admin se renombra o se agrega una categoría, la pestaña
+  // aparece sola, sin tener que tocar este archivo cada vez.
+  const CATEGORIES = useMemo(() => {
+    const preferredOrder = PREFERRED_CATEGORY_ORDER[isCustomizedTheme ? 'personalizados' : 'default']
+    const present = new Set(
+      themeFilteredProducts.map((p) => (p.category || '').trim()).filter(Boolean)
+    )
+    const ordered = preferredOrder.filter((c) => present.has(c))
+    const extra = Array.from(present)
+      .filter((c) => !preferredOrder.includes(c))
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    return ['Todos', ...ordered, ...extra]
+  }, [themeFilteredProducts, isCustomizedTheme])
 
   const categoryFiltered = useMemo(() => {
     if (active === 'Todos') return themeFilteredProducts

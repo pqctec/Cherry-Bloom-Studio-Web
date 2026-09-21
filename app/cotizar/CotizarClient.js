@@ -35,6 +35,16 @@ const PHONE_BY_BRAND = {
   default: '51947499090',
 }
 
+// Orden preferido de pestañas de categoría por tema — solo afecta el ORDEN
+// en que se muestran; no es una lista cerrada. Ver CATEGORIES más abajo:
+// cualquier categoría que exista de verdad en los productos pero no esté
+// aquí (por ejemplo porque se renombró una en el panel de admin) se agrega
+// igual al final, en vez de desaparecer como pasaba antes con la lista fija.
+const PREFERRED_CATEGORY_ORDER = {
+  personalizados: ['Belleza', 'Estampados'],
+  default: ['Repuestos', 'Reparación', 'Asesorias'],
+}
+
 // Orden de tela y de talla para las variantes de Estampados (y cualquier
 // otro producto que use la misma convención de id: "...-<tela>-<talla>").
 // Tela: Jersey 30/1, luego Jersey 20/1, luego Algodón Pima 50/1 (el mismo
@@ -362,10 +372,6 @@ export default function CotizarClient({ products }) {
   const isCustomizedTheme = activeBrand === 'personalizados'
   const phone = PHONE_BY_BRAND[activeBrand] || PHONE_BY_BRAND.default
 
-  const CATEGORIES = isCustomizedTheme
-    ? ['Todos', 'Belleza', 'Estampados', 'Papeleria']
-    : ['Todos', 'Repuestos', 'Reparación', 'Asesorias']
-
   const [active, setActive] = useState('Todos')
   const [search, setSearch] = useState('')
   const [expandedId, setExpandedId] = useState(null)
@@ -391,6 +397,20 @@ export default function CotizarClient({ products }) {
       return isCustomizedTheme ? isCus : !isCus
     })
   }, [products, isCustomizedTheme])
+
+  // Las pestañas de categoría salen de las categorías que de verdad tienen
+  // productos en este tema, no de una lista escrita a mano — así, si en el
+  // panel de admin se renombra o se agrega una categoría, la pestaña
+  // aparece sola, sin tener que tocar este archivo cada vez.
+  const CATEGORIES = useMemo(() => {
+    const preferredOrder = PREFERRED_CATEGORY_ORDER[isCustomizedTheme ? 'personalizados' : 'default']
+    const present = new Set(themeFiltered.map((p) => (p.category || '').trim()).filter(Boolean))
+    const ordered = preferredOrder.filter((c) => present.has(c))
+    const extra = Array.from(present)
+      .filter((c) => !preferredOrder.includes(c))
+      .sort((a, b) => a.localeCompare(b, 'es'))
+    return ['Todos', ...ordered, ...extra]
+  }, [themeFiltered, isCustomizedTheme])
 
   const categoryFiltered = useMemo(() => {
     if (active === 'Todos') return themeFiltered
