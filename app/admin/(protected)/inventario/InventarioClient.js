@@ -83,8 +83,10 @@ function CountForm({ product, onDone, onCancel }) {
         <label className="block text-[11px] font-semibold uppercase tracking-widest text-zinc-500 mb-1">
           Foto del producto/anaquel *
         </label>
-        {/* capture="environment" hace que el celular abra directo la cámara
-            trasera en vez de pedir elegir de la galería. */}
+        {/* Ojo: SIN capture="environment" a propósito — con él, Android abre
+            la cámara directo y no deja elegir de la galería. Sin capture, el
+            celular muestra su propio selector con ambas opciones (cámara o
+            galería). */}
         <label className="flex items-center gap-3 rounded-lg border border-dashed border-zinc-300 bg-white px-3 py-2.5 text-sm text-zinc-500 cursor-pointer hover:bg-zinc-50">
           {photoPreview ? (
             <img src={photoPreview} alt="" className="h-10 w-10 rounded-md object-cover shrink-0" />
@@ -95,7 +97,6 @@ function CountForm({ product, onDone, onCancel }) {
           <input
             type="file"
             accept="image/*"
-            capture="environment"
             required
             className="hidden"
             onChange={handlePhotoChange}

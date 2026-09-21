@@ -75,7 +75,11 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
       {/* Primero la foto: así el flujo real coincide con el orden en que se
           trabaja — el producto ya está sobre la mesa, se le toman las fotos
           que hagan falta, y recién ahí se completa el resto del formulario.
-          capture="environment" abre directo la cámara trasera en celular. */}
+          Ojo: SIN el atributo capture="environment" a propósito — con él,
+          Android abre la cámara directo y no deja elegir de la galería (que
+          hace falta cuando la foto ya está tomada, o para reemplazarla con
+          otra que no sea nueva). Sin capture, el celular muestra su propio
+          selector con ambas opciones (cámara o galería). */}
       <div>
         <label className="block text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">
           Foto del producto
@@ -97,7 +101,6 @@ export default function ProductForm({ action, initial = {}, parentOptions = [], 
             type="file"
             name="image"
             accept="image/*"
-            capture="environment"
             className="hidden"
             onChange={handlePhotoChange}
           />
