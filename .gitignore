@@ -5,3 +5,8 @@ node_modules
 
 .vercel
 .env*
+
+# Carpeta local donde guardas los archivos que Claude te entrega (zips, apks,
+# borradores). No tiene nada que ver con el código del proyecto y no debe
+# subirse al repositorio.
+Claude outputs/
