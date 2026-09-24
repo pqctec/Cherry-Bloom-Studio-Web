@@ -15,6 +15,16 @@ const PHONE_BY_BRAND = {
   default: '51947499090',
 }
 
+// Mismo whitelist que lib/getProducts.js, y por la misma razón: esta
+// consulta corre directo en el navegador con la anon key, así que pedir
+// columnas de más (.select('*')) expondría "cost_price" (el costo de
+// compra) a cualquiera que abra las herramientas de desarrollador — la
+// tabla "products" es de lectura pública en Supabase a propósito, para que
+// el catálogo funcione, pero eso no debería incluir datos internos de
+// margen.
+const PUBLIC_PRODUCT_COLUMNS =
+  'id, category, name, description, price, price_amount, icon, nivel, idchild, badge, image_url, image_urls, stock_qty, low_stock_threshold'
+
 export default function ProductDetailPage() {
   const params = useParams()
   const id = params?.id
@@ -30,7 +40,7 @@ export default function ProductDetailPage() {
       setLoading(true)
       const { data, error } = await supabase
         .from('products')
-        .select('*')
+        .select(PUBLIC_PRODUCT_COLUMNS)
         .eq('id', id)
         .maybeSingle()
 

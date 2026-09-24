@@ -9,6 +9,19 @@ import { requireStaff, requireAdmin } from '@/lib/authz'
 import { normalizePhone, STAFF_EMAIL_DOMAIN } from '@/lib/phone'
 import { formatCurrency } from '@/lib/price'
 
+// Mismo whitelist de tipos y límite de tamaño que ya usan las fotos de
+// inventario (app/admin/(protected)/inventario/actions.js) y los diseños de
+// /cotizar (app/cotizar/actions.js) — acá faltaba, y sin esto cualquier
+// archivo (de cualquier tipo y tamaño) se podía subir al bucket público
+// "product-images" con solo confiar en el nombre/tipo que manda el propio
+// navegador, que se puede falsificar.
+const ALLOWED_PHOTO_TYPES = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024 // 8 MB por foto
+
 // -----------------------------------------------------------------------------
 // Sesión
 // -----------------------------------------------------------------------------
@@ -58,7 +71,14 @@ async function uploadNewImages(admin, formData) {
 
   const urls = []
   for (const file of files) {
-    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
+    const ext = ALLOWED_PHOTO_TYPES[file.type]
+    if (!ext) {
+      throw new Error(`"${file.name}" no es una foto válida. Solo se aceptan JPG, PNG o WEBP.`)
+    }
+    if (file.size > MAX_PHOTO_BYTES) {
+      throw new Error(`"${file.name}" pesa más de 8 MB. Usa una foto más liviana.`)
+    }
+
     const path = `products/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
 
     const { error: uploadError } = await admin.storage
@@ -252,8 +272,11 @@ export async function resendInvite(userId) {
 }
 
 function generateTempPassword() {
-  // Formato corto y fácil de teclear en un celular: "CB" + 6 dígitos.
-  const digits = String(randomInt(0, 1_000_000)).padStart(6, '0')
+  // Formato corto y fácil de teclear en un celular: "CB" + 8 dígitos (antes
+  // eran 6 — con 8 hay 100 veces más combinaciones posibles, harto más
+  // difícil de adivinar a la fuerza, y se sigue tecleando igual de rápido
+  // con el teclado numérico del celular).
+  const digits = String(randomInt(0, 100_000_000)).padStart(8, '0')
   return `CB${digits}`
 }
 

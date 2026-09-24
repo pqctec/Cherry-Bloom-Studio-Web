@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Revisa las dependencias de npm (package.json) una vez por semana y abre
+  # un Pull Request automático cada vez que encuentra una con una
+  # vulnerabilidad conocida — sin esto, nadie se entera de que una librería
+  # quedó insegura hasta que alguien corre "npm audit" a mano.
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+
+  # Lo mismo, pero para las acciones de GitHub Actions que usa este repo
+  # (por ejemplo actions/checkout, actions/setup-node) — también pueden
+  # tener versiones vulnerables.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"

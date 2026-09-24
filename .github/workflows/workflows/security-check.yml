@@ -1,0 +1,33 @@
+name: Revisión de seguridad
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Dependencias y build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Revisar vulnerabilidades conocidas (npm audit)
+        run: npm audit --audit-level=high
+
+      - name: Verificar que el proyecto compile (build de producción)
+        run: npx next build
