@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdmin } from '@/lib/authz'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { adjustStock } from '@/lib/stock'
 
 // Todo este módulo es solo para admin: contiene costos de compra y
 // márgenes, información sensible del negocio.
@@ -57,7 +58,7 @@ function parseItems(formData) {
 }
 
 export async function createPurchase(formData) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const admin = createAdminSupabaseClient()
 
   const items = parseItems(formData)
@@ -88,12 +89,22 @@ export async function createPurchase(formData) {
   )
   if (itemsError) throw new Error(itemsError.message)
 
-  // Actualiza el costo actual de cada producto comprado, para que el
-  // margen (precio - costo) se calcule con el costo más reciente.
+  // Por cada línea con producto asociado: actualiza su costo actual (para
+  // que el margen se calcule con el costo más reciente) Y suma la cantidad
+  // comprada al stock — antes esto último no pasaba, y el stock solo se
+  // corregía haciendo un conteo físico manual en "Hacer inventario".
   for (const it of items) {
-    if (it.product_id) {
-      await admin.from('products').update({ cost_price: it.unit_cost }).eq('id', it.product_id)
-    }
+    if (!it.product_id) continue
+    await admin.from('products').update({ cost_price: it.unit_cost }).eq('id', it.product_id)
+    await adjustStock(admin, {
+      productId: it.product_id,
+      productName: it.description,
+      delta: it.quantity,
+      type: 'compra',
+      refTable: 'purchases',
+      refId: purchase.id,
+      userId: session.user.id,
+    })
   }
 
   // Registra automáticamente el gasto en caja.
@@ -111,9 +122,32 @@ export async function createPurchase(formData) {
 }
 
 export async function deletePurchase(id) {
-  await requireAdmin()
+  const session = await requireAdmin()
   const admin = createAdminSupabaseClient()
+
+  // Si la compra había sumado stock, se le resta antes de borrarla (una vez
+  // borrada, purchase_items desaparece en cascada).
+  const { data: items } = await admin
+    .from('purchase_items')
+    .select('product_id, description, quantity')
+    .eq('purchase_id', id)
+  for (const it of items || []) {
+    if (!it.product_id) continue
+    await adjustStock(admin, {
+      productId: it.product_id,
+      productName: it.description,
+      delta: -it.quantity,
+      type: 'ajuste',
+      refTable: 'purchases',
+      refId: id,
+      userId: session.user.id,
+      notes: 'Compra eliminada: stock corregido',
+    })
+  }
+
   const { error } = await admin.from('purchases').delete().eq('id', id)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/compras')
+  revalidatePath('/admin/productos')
+  revalidatePath('/admin/reportes')
 }

@@ -15,10 +15,16 @@ export default async function EditProductPage({ params }) {
   }
 
   const admin = createAdminSupabaseClient()
-  const [{ data: product }, { data: parents }, { data: categoryRows }] = await Promise.all([
+  const [{ data: product }, { data: parents }, { data: categoryRows }, { data: movements }] = await Promise.all([
     admin.from('products').select('*').eq('id', id).maybeSingle(),
     admin.from('products').select('id, name, category').eq('nivel', '1').order('name', { ascending: true }),
     admin.from('products').select('category'),
+    admin
+      .from('stock_movements')
+      .select('id, type, delta, resulting_qty, notes, created_at')
+      .eq('product_id', id)
+      .order('created_at', { ascending: false })
+      .limit(20),
   ])
 
   if (!product) notFound()
@@ -27,6 +33,14 @@ export default async function EditProductPage({ params }) {
   const categories = Array.from(
     new Set((categoryRows || []).map((p) => p.category).filter(Boolean))
   )
+
+  const MOVEMENT_LABELS = {
+    venta: 'Venta',
+    compra: 'Compra',
+    conteo: 'Conteo físico',
+    ajuste: 'Ajuste',
+    cancelacion: 'Cancelación / devolución',
+  }
 
   return (
     <div>
@@ -46,6 +60,50 @@ export default async function EditProductPage({ params }) {
         parentOptions={(parents || []).filter((p) => p.id !== id)}
         categories={categories}
       />
+
+      {/* Historial de stock: de dónde salió cada cambio de cantidad — venta,
+          compra, conteo físico o ajuste — no solo el número final. Antes
+          era imposible saber por qué el stock de un producto había cambiado;
+          ahora Ventas y Compras dejan su propio registro acá, igual que los
+          conteos de "Hacer inventario". */}
+      <div className="mt-12 max-w-2xl">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-3">
+          Historial de stock
+        </h2>
+        {(movements || []).length === 0 ? (
+          <p className="text-sm text-zinc-400">
+            Todavía no hay movimientos registrados para este producto.
+          </p>
+        ) : (
+          <div className="rounded-2xl border border-zinc-200 divide-y divide-zinc-100 overflow-hidden">
+            {movements.map((m) => (
+              <div key={m.id} className="flex items-center justify-between gap-4 px-4 py-3 text-sm">
+                <div className="min-w-0">
+                  <p className="text-zinc-800">
+                    {MOVEMENT_LABELS[m.type] || m.type}
+                    {m.notes ? <span className="text-zinc-400"> · {m.notes}</span> : null}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {new Date(m.created_at).toLocaleString('es-PE', {
+                      dateStyle: 'medium',
+                      timeStyle: 'short',
+                    })}
+                  </p>
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`font-semibold ${m.delta > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    {m.delta > 0 ? '+' : ''}
+                    {m.delta}
+                  </p>
+                  {m.resulting_qty !== null && (
+                    <p className="text-xs text-zinc-400">quedó en {m.resulting_qty}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

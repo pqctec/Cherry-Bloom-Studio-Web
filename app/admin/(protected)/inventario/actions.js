@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { requireStaff } from '@/lib/authz'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
+import { adjustStock } from '@/lib/stock'
 
 // Fotos tomadas directo con la cámara del celular pesan más que un archivo
 // escaneado a mano (12+ MP es normal hoy), así que el límite acá es más
@@ -81,17 +82,27 @@ export async function submitInventoryCount(formData) {
 
   // Ya quedó el registro de auditoría con la foto; ahora sí se refleja el
   // conteo como el stock oficial del producto (decisión: el conteo
-  // actualiza el stock al instante, no queda pendiente de aprobación).
-  const { error: stockError } = await admin
-    .from('products')
-    .update({ stock_qty: counted_qty, updated_at: new Date().toISOString() })
-    .eq('id', product_id)
-
-  if (stockError) throw new Error(stockError.message)
+  // actualiza el stock al instante, no queda pendiente de aprobación). Pasa
+  // por adjustStock() igual que Ventas y Compras para que quede también en
+  // el historial unificado de movimientos (stock_movements) — si el conteo
+  // coincide con lo que ya había (diferencia 0), no hay movimiento que
+  // registrar ahí, pero la evidencia con foto en inventory_counts queda de
+  // todas formas.
+  await adjustStock(admin, {
+    productId: product_id,
+    productName: product.name,
+    delta: counted_qty - (product.stock_qty ?? 0),
+    type: 'conteo',
+    refTable: 'inventory_counts',
+    refId: countRow.id,
+    userId: session.user.id,
+    notes,
+  })
 
   revalidatePath('/admin/inventario')
   revalidatePath('/admin/productos')
   revalidatePath('/admin')
+  revalidatePath('/admin/reportes')
   revalidatePath('/catalogo')
 
   return countRow
