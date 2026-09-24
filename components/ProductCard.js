@@ -72,7 +72,10 @@ export default function ProductCard({ product, disableLink = false }) {
         </div>
 
         <div className="mt-6 pt-4 border-t border-zinc-100 flex items-center justify-between">
-          <span className="text-base font-semibold text-zinc-900">{product.price}</span>
+          <span className="text-lg font-semibold text-zinc-900">{product.price}</span>
+          <span className="text-xs font-medium text-zinc-400 group-hover:text-zinc-900 transition-colors">
+            Ver más →
+          </span>
         </div>
       </div>
     </div>
@@ -82,7 +85,7 @@ export default function ProductCard({ product, disableLink = false }) {
   return disableLink ? (
     cardInner
   ) : (
-    <Link href={`/catalogo/${product.id}`} className="block h-full no-underline">
+    <Link href={`/catalogo/${product.id}`} className="block h-full no-underline group">
       {cardInner}
     </Link>
   )

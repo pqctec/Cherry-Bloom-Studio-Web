@@ -1,7 +1,9 @@
 'use client'
 
 import { useMemo, useState, useEffect } from 'react'
+import Link from 'next/link'
 import ProductCard from '@/components/ProductCard'
+import CategoryIcon from '@/components/CategoryIcon'
 import { useTheme } from '@/lib/ThemeContext'
 
 // Orden preferido de pestañas por tema — solo afecta el ORDEN en que se
@@ -26,6 +28,20 @@ export default function CatalogoClient({ products }) {
     setActive('Todos')
     setSelectedParentId(null)
   }, [activeBrand])
+
+  // Barra fija que aparece al bajar en la página (estilo "Accessories ·
+  // Explore" de apple.com): sin ella, el título y el acceso a Cotizar
+  // desaparecían apenas se hacía scroll y había que volver arriba para
+  // encontrarlos.
+  const [scrolled, setScrolled] = useState(false)
+  useEffect(() => {
+    function onScroll() {
+      setScrolled(window.scrollY > 220)
+    }
+    onScroll()
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [])
 
   const handleSelectParent = (id) => {
     setSelectedParentId(id)
@@ -94,28 +110,45 @@ export default function CatalogoClient({ products }) {
 
   const currentParent = themeFilteredProducts.find((p) => String(p.id) === String(selectedParentId))
 
+  const pageTitle =
+    selectedParentId === null
+      ? isCustomizedTheme
+        ? 'Personalizados'
+        : 'Tecnología'
+      : currentParent?.name || ''
+
   return (
-    <div className="w-full bg-white text-zinc-950 min-h-screen py-12 px-6 transition-colors duration-500">
-      <div className="max-w-6xl mx-auto">
-        
+    <div className="w-full bg-white text-zinc-950 min-h-screen transition-colors duration-500">
+      {/* Barra fija estilo Apple ("Accessories · Explore"): se muestra solo
+          después de bajar un poco, con el título de la sección actual y un
+          acceso directo a Cotizar siempre a mano. */}
+      <div
+        className={`sticky top-16 z-30 border-b border-zinc-200 bg-white/90 backdrop-blur-md transition-all duration-300 ${
+          scrolled ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2 pointer-events-none'
+        }`}
+      >
+        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between gap-4">
+          <span className="text-sm font-semibold tracking-tight text-zinc-900 truncate">{pageTitle}</span>
+          <Link
+            href="/cotizar"
+            className="shrink-0 rounded-full bg-zinc-950 hover:bg-zinc-800 text-white px-4 py-1.5 text-xs font-medium transition-all active:scale-95"
+          >
+            Cotizar
+          </Link>
+        </div>
+      </div>
+
+      <div className="max-w-6xl mx-auto px-6 pt-12">
         {/* Cabecera Estilo Apple */}
         <div className="mb-10 flex flex-col sm:flex-row sm:items-end sm:justify-between border-b border-zinc-200 pb-8">
           <div>
             <span className="text-xs font-semibold uppercase tracking-[0.25em] text-zinc-400 mb-2 block">
               Catálogo Oficial
             </span>
-            <h1 className="text-4xl sm:text-6xl font-semibold tracking-tight text-zinc-950">
+            <h1 className="text-5xl sm:text-7xl font-semibold tracking-tight text-zinc-950">
               {isCustomizedTheme ? 'Personalizados' : 'Tecnología'}
             </h1>
           </div>
-          {/* <div className="mt-4 sm:mt-0 text-right hidden sm:block">
-            <span className="text-xs font-medium text-zinc-500 block hover:text-zinc-950 cursor-pointer transition-colors">
-              Connect with a Specialist ↗
-            </span>
-            <span className="text-xs font-medium text-zinc-500 block mt-1 hover:text-zinc-950 cursor-pointer transition-colors">
-              Find a Store ↗
-            </span>
-          </div> */}
         </div>
 
         {selectedParentId === null ? (
@@ -141,7 +174,7 @@ export default function CatalogoClient({ products }) {
             </div>
 
             {/* BARRA DE ICONOS ESTILO APPLE ACCESSORIES (NIVEL 1) */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 mb-16">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-6 pb-16">
               {nivel1Products.length > 0 ? (
                 nivel1Products.map((product) => {
                   const productImage = product.image_url || product.image
@@ -151,13 +184,18 @@ export default function CatalogoClient({ products }) {
                     typeof product.stock_qty === 'number' &&
                     product.stock_qty <= (product.low_stock_threshold ?? 3)
                   return (
-                    <div 
-                      key={product.id} 
+                    <div
+                      key={product.id}
                       onClick={() => handleSelectParent(product.id)}
                       className={`cursor-pointer group flex flex-col items-center text-center p-4 rounded-2xl transition-all duration-300 hover:bg-zinc-50 ${isOutOfStock ? 'opacity-60' : ''}`}
                     >
-                      {/* Contenedor circular/redondeado del icono al estilo Apple */}
-                      <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full bg-zinc-100 border border-zinc-200/80 flex items-center justify-center p-4 mb-4 shadow-sm group-hover:scale-105 group-hover:border-zinc-300 group-hover:shadow-md transition-all duration-300 relative overflow-hidden">
+                      {/* Contenedor circular al estilo Apple: fondo con un
+                          leve degradado y sombra suave en vez de un gris
+                          plano, para que se sienta más "producto flotando"
+                          y menos placeholder. Si el producto no tiene foto
+                          todavía, se usa el icono de su categoría en vez de
+                          un simple "✦" sin diseño. */}
+                      <div className="w-24 h-24 sm:w-32 sm:h-32 rounded-full bg-gradient-to-b from-zinc-50 to-zinc-100 border border-zinc-200/80 flex items-center justify-center p-5 mb-4 shadow-[0_1px_2px_rgba(0,0,0,0.04),0_10px_24px_-14px_rgba(0,0,0,0.35)] group-hover:scale-105 group-hover:shadow-[0_1px_2px_rgba(0,0,0,0.04),0_16px_32px_-12px_rgba(0,0,0,0.3)] transition-all duration-300 relative overflow-hidden">
                         {productImage ? (
                           <img
                             src={productImage}
@@ -165,7 +203,7 @@ export default function CatalogoClient({ products }) {
                             className="w-full h-full object-contain filter drop-shadow-sm"
                           />
                         ) : (
-                          <span className="text-2xl text-zinc-300">✦</span>
+                          <CategoryIcon name={product.icon} className="w-9 h-9 sm:w-10 sm:h-10 text-zinc-300" />
                         )}
                         {product.badge && (
                           <span className="absolute top-2 right-2 bg-zinc-900 text-white text-[9px] font-semibold uppercase px-1.5 py-0.5 rounded-full">
@@ -202,19 +240,9 @@ export default function CatalogoClient({ products }) {
                 </div>
               )}
             </div>
-
-            {/* Sección inferior opcional o destacados */}
-            <div className="border-t border-zinc-200 pt-12">
-              <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 mb-4">
-                Explora el catálogo completo
-              </h2>
-              <p className="text-sm text-zinc-500 max-w-xl">
-                Selecciona cualquiera de las opciones superiores para ver los repuestos, herramientas y servicios detallados disponibles para ti.
-              </p>
-            </div>
           </div>
         ) : (
-          <div>
+          <div className="pb-16">
             {/* Botón Volver */}
             <button
               onClick={handleBack}
@@ -247,6 +275,23 @@ export default function CatalogoClient({ products }) {
           </div>
         )}
       </div>
+
+      {/* Banda inferior a todo el ancho, estilo Apple: un fondo gris suave
+          que corta la página en secciones (arriba, todo blanco) en vez de
+          un solo bloque plano de principio a fin. Solo aparece en la
+          pantalla de categorías, no dentro de una subcategoría. */}
+      {selectedParentId === null && (
+        <div className="w-full bg-zinc-50 border-t border-zinc-200">
+          <div className="max-w-6xl mx-auto px-6 py-16">
+            <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-zinc-950 mb-4">
+              Explora el catálogo completo
+            </h2>
+            <p className="text-sm text-zinc-500 max-w-xl">
+              Selecciona cualquiera de las opciones superiores para ver los repuestos, herramientas y servicios detallados disponibles para ti.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
