@@ -4,6 +4,12 @@ import { useTheme } from '@/lib/ThemeContext'
 import CategoryIcon from '@/components/CategoryIcon'
 import WhatsAppButton from '@/components/WhatsAppButton'
 
+// Cherry Bloom Studio · Novios es un producto propio y separado (proyecto y
+// dominio aparte), así que el link sale por variable de entorno en vez de
+// quedar hardcodeado — configúralo en Vercel una vez que despliegues ese
+// proyecto (ver su propio README).
+const NOVIOS_URL = process.env.NEXT_PUBLIC_NOVIOS_URL || 'https://novios.cherrybloomstudio.com'
+
 const SERVICES = [
   {
     icon: 'chip',
@@ -44,6 +50,15 @@ const SERVICES = [
     description: 'Cajas a medida para regalos y presentaciones especiales.',
     theme: 'personalizados',
   },
+  {
+    icon: 'flower',
+    title: 'Bodas: decoración y lista de novios',
+    description:
+      'Arreglos de mesa, decoración de entrada, panel de firmas y mesa de fotos para tu evento — además de una página propia para tu lista de invitados y de regalos.',
+    theme: 'personalizados',
+    href: NOVIOS_URL,
+    external: true,
+  },
 ]
 
 export default function ServiciosPage() {
@@ -72,24 +87,45 @@ export default function ServiciosPage() {
 
         {/* Cuadrícula de Servicios */}
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredServices.map((service) => (
-            <div 
-              key={service.title} 
-              className="rounded-3xl p-8 border border-zinc-200 bg-zinc-50/60 backdrop-blur-sm flex flex-col justify-between transition-all duration-300 hover:border-zinc-300 hover:shadow-lg"
-            >
-              <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-800 mb-6 shadow-sm">
-                  <CategoryIcon name={service.icon} />
+          {filteredServices.map((service) => {
+            const CardTag = service.href ? 'a' : 'div'
+            const cardProps = service.href
+              ? {
+                  href: service.href,
+                  target: service.external ? '_blank' : undefined,
+                  rel: service.external ? 'noopener noreferrer' : undefined,
+                }
+              : {}
+
+            return (
+              <CardTag
+                key={service.title}
+                {...cardProps}
+                className={`rounded-3xl p-8 border backdrop-blur-sm flex flex-col justify-between transition-all duration-300 hover:shadow-lg ${
+                  service.href
+                    ? 'border-purple-200 bg-purple-50/40 hover:border-purple-300'
+                    : 'border-zinc-200 bg-zinc-50/60 hover:border-zinc-300'
+                }`}
+              >
+                <div>
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl border border-zinc-200 bg-white text-zinc-800 mb-6 shadow-sm">
+                    <CategoryIcon name={service.icon} />
+                  </div>
+                  <h3 className="text-xl font-semibold tracking-tight text-zinc-950">
+                    {service.title}
+                  </h3>
+                  <p className="mt-3 text-sm text-zinc-500 leading-relaxed font-normal">
+                    {service.description}
+                  </p>
                 </div>
-                <h3 className="text-xl font-semibold tracking-tight text-zinc-950">
-                  {service.title}
-                </h3>
-                <p className="mt-3 text-sm text-zinc-500 leading-relaxed font-normal">
-                  {service.description}
-                </p>
-              </div>
-            </div>
-          ))}
+                {service.href && (
+                  <span className="mt-6 inline-flex items-center gap-1 text-xs font-semibold text-purple-700">
+                    Ver sitio de novios →
+                  </span>
+                )}
+              </CardTag>
+            )
+          })}
         </div>
 
         {/* Banner Inferior */}

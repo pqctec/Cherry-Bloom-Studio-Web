@@ -30,6 +30,48 @@ export default function CategoryIcon({ name, className = '' }) {
     )
   }
 
+  // Arreglos de mesa (bodas)
+  if (name === 'flower') {
+    return (
+      <svg {...common}>
+        <circle cx="12" cy="9" r="2.1" />
+        <path d="M12 6.9c-1.4-1.6-3.8-1.3-4.1.5-.3 1.5 1 2.6 2.4 2.6M12 6.9c1.4-1.6 3.8-1.3 4.1.5.3 1.5-1 2.6-2.4 2.6M12 11.1c-1.4 1.6-1.1 3.8.5 4.1 1.5.3 2.6-1 2.6-2.4M12 11.1c1.4 1.6 1.1 3.8-.5 4.1-1.5.3-2.6-1-2.6-2.4" />
+        <path d="M12 15.4V22" />
+      </svg>
+    )
+  }
+
+  // Decoración de entrada / arco (bodas)
+  if (name === 'arch') {
+    return (
+      <svg {...common}>
+        <path d="M5 21V12a7 7 0 0 1 14 0v9" />
+        <path d="M3 21h5M16 21h5" />
+      </svg>
+    )
+  }
+
+  // Panel de firmas (bodas)
+  if (name === 'signature') {
+    return (
+      <svg {...common}>
+        <path d="M14.2 4.3 19.7 9.8 10.5 19H5v-5.5Z" />
+        <path d="M3 20h7" />
+      </svg>
+    )
+  }
+
+  // Mesa de fotos (bodas)
+  if (name === 'camera') {
+    return (
+      <svg {...common}>
+        <rect x="3" y="7" width="18" height="13" rx="2" />
+        <path d="M8 7l1.4-2.3h5.2L16 7" />
+        <circle cx="12" cy="13.5" r="3.2" />
+      </svg>
+    )
+  }
+
   // default: chip
   return (
     <svg {...common}>
