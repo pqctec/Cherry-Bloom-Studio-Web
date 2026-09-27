@@ -5,6 +5,8 @@ import Link from 'next/link'
 import ProductCard from '@/components/ProductCard'
 import WhatsAppButton from '@/components/WhatsAppButton'
 
+const NOVIOS_URL = process.env.NEXT_PUBLIC_NOVIOS_URL || 'https://novios.cherrybloomstudio.com'
+
 const SERVICE_GROUPS = [
   {
     id: 'tech',
@@ -12,7 +14,11 @@ const SERVICE_GROUPS = [
     eyebrow: 'Innovación y Soporte',
     description:
       'Repuestos y accesorios originales para PC, celulares y tablets, reparación técnica especializada y asesoría con más de 15 años de trayectoria.',
-    items: ['Repuestos y accesorios', 'Reparación de equipos', 'Asesoría tecnológica'],
+    items: [
+      { label: 'Repuestos y accesorios' },
+      { label: 'Reparación de equipos' },
+      { label: 'Asesoría tecnológica' },
+    ],
     logo: '/tech-logo.jpg',
     accentColor: 'border-blue-500/30 bg-blue-50/30 text-blue-900',
     badgeBg: 'bg-blue-100 text-blue-800',
@@ -23,7 +29,12 @@ const SERVICE_GROUPS = [
     eyebrow: 'Diseño a Medida',
     description:
       'Estampado de polos, tazas exclusivas y cajas decorativas hechas a pedido para regalos memorables o merchandising corporativo de alto nivel.',
-    items: ['Estampado de polos', 'Tazas personalizadas', 'Cajas decorativas'],
+    items: [
+      { label: 'Estampado de polos' },
+      { label: 'Tazas personalizadas' },
+      { label: 'Cajas decorativas' },
+      { label: 'Bodas: decoración y lista de novios', href: NOVIOS_URL, external: true },
+    ],
     logo: '/custom-logo.jpg',
     accentColor: 'border-purple-500/30 bg-purple-50/30 text-purple-900',
     badgeBg: 'bg-purple-100 text-purple-800',
@@ -147,9 +158,21 @@ export default function HomePage({ products = [] }) {
 
                   <ul className="space-y-2.5 text-sm text-zinc-700 mb-8">
                     {group.items.map((item) => (
-                      <li key={item} className="flex items-center gap-3">
+                      <li key={item.label} className="flex items-center gap-3">
                         <span className={`h-1.5 w-1.5 rounded-full ${group.id === 'tech' ? 'bg-blue-500' : 'bg-purple-500'}`} />
-                        {item}
+                        {item.href ? (
+                          <a
+                            href={item.href}
+                            target={item.external ? '_blank' : undefined}
+                            rel={item.external ? 'noopener noreferrer' : undefined}
+                            onClick={(e) => e.stopPropagation()}
+                            className="underline decoration-dotted underline-offset-4 hover:text-purple-700 transition-colors"
+                          >
+                            {item.label}
+                          </a>
+                        ) : (
+                          item.label
+                        )}
                       </li>
                     ))}
                   </ul>
