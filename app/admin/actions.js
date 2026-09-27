@@ -3,11 +3,26 @@
 import { randomInt } from 'crypto'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { headers } from 'next/headers'
 import { createServerSupabaseClient } from '@/lib/supabase/server'
 import { createAdminSupabaseClient } from '@/lib/supabase/admin'
 import { requireStaff, requireAdmin } from '@/lib/authz'
 import { normalizePhone, STAFF_EMAIL_DOMAIN } from '@/lib/phone'
 import { formatCurrency } from '@/lib/price'
+
+// El correo de invitación de Supabase, sin un "redirectTo" explícito, cae de
+// vuelta a la página de inicio pública del sitio — ahí no hay ningún código
+// que lea la sesión que trae el link ni que le pida al invitado crear su
+// contraseña, así que el link simplemente "no hace nada" a los ojos de la
+// persona. Con esto lo mandamos a /admin/invitacion, que sí sabe qué hacer
+// con esa sesión. Usamos el host de la petición (no una variable de entorno)
+// para que funcione igual en producción, en preview de Vercel y en local.
+async function getSiteOrigin() {
+  const headerList = await headers()
+  const host = headerList.get('host') || 'localhost:3000'
+  const protocol = host.startsWith('localhost') || host.startsWith('127.0.0.1') ? 'http' : 'https'
+  return `${protocol}://${host}`
+}
 
 // Mismo whitelist de tipos y límite de tamaño que ya usan las fotos de
 // inventario (app/admin/(protected)/inventario/actions.js) y los diseños de
@@ -227,7 +242,9 @@ export async function inviteUser(formData) {
   if (!email) throw new Error('El correo es obligatorio.')
   if (!['admin', 'empleado'].includes(role)) throw new Error('Rol inválido.')
 
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email)
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, {
+    redirectTo: `${await getSiteOrigin()}/admin/invitacion`,
+  })
   if (error) throw new Error(error.message)
 
   const userId = data.user.id
@@ -267,7 +284,9 @@ export async function resendInvite(userId) {
     throw new Error('Este usuario se dio de alta por WhatsApp, no por correo. Usa "Agregar por WhatsApp" con su mismo teléfono para generarle una nueva contraseña.')
   }
 
-  const { error } = await admin.auth.admin.inviteUserByEmail(profile.email)
+  const { error } = await admin.auth.admin.inviteUserByEmail(profile.email, {
+    redirectTo: `${await getSiteOrigin()}/admin/invitacion`,
+  })
   if (error) throw new Error(error.message)
 }
 
