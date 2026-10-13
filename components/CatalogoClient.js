@@ -178,16 +178,16 @@ export default function CatalogoClient({ products }) {
               {nivel1Products.length > 0 ? (
                 nivel1Products.map((product) => {
                   const productImage = product.image_url || product.image
-                  const isOutOfStock = typeof product.stock_qty === 'number' && product.stock_qty <= 0
-                  const isLowStock =
-                    !isOutOfStock &&
-                    typeof product.stock_qty === 'number' &&
-                    product.stock_qty <= (product.low_stock_threshold ?? 3)
+                  // Los productos de nivel 1 son los íconos que agrupan a los
+                  // de nivel 2 (las variantes reales con su propio stock) —
+                  // por eso acá nunca se muestra "Agotado" / "Últimas
+                  // unidades": el stock de verdad se controla y se muestra
+                  // por variante, dentro de cada subcategoría.
                   return (
                     <div
                       key={product.id}
                       onClick={() => handleSelectParent(product.id)}
-                      className={`cursor-pointer group flex flex-col items-center text-center p-4 rounded-2xl transition-all duration-300 hover:bg-zinc-50 ${isOutOfStock ? 'opacity-60' : ''}`}
+                      className="cursor-pointer group flex flex-col items-center text-center p-4 rounded-2xl transition-all duration-300 hover:bg-zinc-50"
                     >
                       {/* Contenedor circular al estilo Apple: fondo con un
                           leve degradado y sombra suave en vez de un gris
@@ -219,16 +219,6 @@ export default function CatalogoClient({ products }) {
                       {product.category && (
                         <span className="text-[10px] text-zinc-400 mt-0.5 uppercase tracking-wider">
                           {product.category}
-                        </span>
-                      )}
-                      {isOutOfStock && (
-                        <span className="mt-1.5 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-red-100 text-red-700">
-                          Agotado
-                        </span>
-                      )}
-                      {isLowStock && (
-                        <span className="mt-1.5 text-[9px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
-                          Últimas unidades
                         </span>
                       )}
                     </div>
