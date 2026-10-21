@@ -1,0 +1,35 @@
+name: Ping diario a Supabase
+
+# Antes confiábamos solo en el cron de Vercel (vercel.json) para evitar que
+# el plan gratuito de Supabase pause el proyecto por inactividad, pero el
+# proyecto se volvió a pausar — así que este workflow es una segunda vía,
+# independiente de Vercel, para la misma tarea. Además, a diferencia del
+# cron de Vercel (que no deja ver si realmente se ejecutó), este sí queda
+# visible en la pestaña "Actions" del repo, igual que "Revisión de
+# seguridad": si un día falla, aparece en rojo acá mismo.
+on:
+  schedule:
+    # 13:00 UTC = 8:00 a.m. hora de Lima (Perú no cambia de horario).
+    # GitHub puede atrasar unos minutos la ejecución en horas de mucha
+    # carga, pero siempre corre una vez al día.
+    - cron: "0 13 * * *"
+  # Permite lanzarlo a mano desde la pestaña Actions → "Ping diario a
+  # Supabase" → "Run workflow", para probarlo sin esperar al horario.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  ping:
+    name: Mantener activa la base de datos
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar al endpoint de keepalive del sitio
+        run: |
+          RESPUESTA=$(curl -fsS https://cherry-bloom-studio-web-omega.vercel.app/api/keepalive)
+          echo "Respuesta: $RESPUESTA"
+          if ! echo "$RESPUESTA" | grep -q '"ok":true'; then
+            echo "Supabase no respondió OK — es probable que el proyecto esté pausado o con otro problema. Revisa el panel de Supabase."
+            exit 1
+          fi
